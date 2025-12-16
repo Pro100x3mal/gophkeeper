@@ -55,6 +55,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	appLogger.Info("Database initialized successfully")
 
 	if err = runMigrations(cfg.DatabaseDSN); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 	appLogger.Info("Migrations successfully applied")
@@ -151,6 +152,7 @@ func initDB(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	}
 
 	if err = pool.Ping(ctxWithTimeout); err != nil {
+		pool.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
