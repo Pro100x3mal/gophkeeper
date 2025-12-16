@@ -52,7 +52,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
-	appLogger.Info("Database initialized successfully", zap.String("dsn", cfg.DatabaseDSN))
+	appLogger.Info("Database initialized successfully")
 
 	if err = runMigrations(cfg.DatabaseDSN); err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
