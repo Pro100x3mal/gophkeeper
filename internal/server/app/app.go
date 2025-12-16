@@ -1,0 +1,179 @@
+package app
+
+import (
+	"context"
+	"embed"
+	"errors"
+	"fmt"
+	"net/http"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/Pro100x3mal/gophkeeper/internal/server/config"
+	"github.com/Pro100x3mal/gophkeeper/internal/server/handlers"
+	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
+	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
+	"github.com/Pro100x3mal/gophkeeper/pkg/jwt"
+	"github.com/Pro100x3mal/gophkeeper/pkg/logger"
+	"github.com/go-chi/chi/v5"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
+)
+
+type App struct {
+	config *config.Config
+	logger *zap.Logger
+	db     *pgxpool.Pool
+	server *http.Server
+}
+
+func NewApp(cfg *config.Config) (*App, error) {
+	log, err := logger.New(cfg.LogLevel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create logger: %w", err)
+	}
+	defer log.Sync()
+
+	appLogger := log.Named("app")
+
+	if cfg.DatabaseDSN == "" {
+		return nil, errors.New("database DSN is required")
+	}
+	if cfg.JWTSecret == "" {
+		return nil, errors.New("JWT secret is required")
+	}
+
+	ctx := context.Background()
+	db, err := initDB(ctx, cfg.DatabaseDSN)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize database: %w", err)
+	}
+	appLogger.Info("Database initialized successfully", zap.String("dsn", cfg.DatabaseDSN))
+
+	if err = runMigrations(cfg.DatabaseDSN); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+	appLogger.Info("Migrations successfully applied")
+
+	jwtGen := jwt.NewGenerator(cfg.JWTSecret, cfg.JWTExpiration)
+
+	userRepo := repositories.NewUserRepository(db)
+	authService := services.NewAuthService(userRepo, jwtGen)
+	authHandler := handlers.NewAuthHandler(authService, log)
+
+	r := chi.NewRouter()
+	r.Post("/api/v1/register", authHandler.Register)
+	r.Post("/api/v1/login", authHandler.Login)
+
+	server := &http.Server{
+		Addr:         cfg.ServerAddr,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	return &App{
+		config: cfg,
+		logger: log,
+		db:     db,
+		server: server,
+	}, nil
+}
+
+func (a *App) Run() error {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer cancel()
+
+	serverErrCh := make(chan error, 1)
+	go func() {
+		a.logger.Info("Starting HTTP server", zap.String("address", a.config.ServerAddr))
+		if a.config.TLSCertFile != "" && a.config.TLSKeyFile != "" {
+			serverErrCh <- a.server.ListenAndServeTLS(a.config.TLSCertFile, a.config.TLSKeyFile)
+		} else {
+			serverErrCh <- a.server.ListenAndServe()
+		}
+
+	}()
+
+	var serverErr error
+	select {
+	case err := <-serverErrCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			a.logger.Error("Server failed unexpectedly", zap.Error(err))
+			serverErr = fmt.Errorf("server failed: %w", err)
+		}
+	case <-ctx.Done():
+		a.logger.Info("Shutting down HTTP server...", zap.String("address", a.config.ServerAddr))
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+
+		if err := a.server.Shutdown(shutdownCtx); err != nil {
+			a.logger.Error("Failed to shutdown server gracefully", zap.Error(err))
+			serverErr = fmt.Errorf("failed to shutdown server: %w", err)
+		}
+	}
+
+	a.logger.Info("Closing database connections...")
+	a.db.Close()
+
+	if serverErr == nil {
+		a.logger.Info("Server shut down gracefully")
+	}
+
+	_ = a.logger.Sync()
+
+	return serverErr
+}
+
+func initDB(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
+	poolConfig, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse database DSN: %w", err)
+	}
+	poolConfig.MaxConns = 50
+	poolConfig.MinConns = 10
+	poolConfig.MaxConnLifetime = 1 * time.Hour
+	poolConfig.MaxConnIdleTime = 30 * time.Minute
+	poolConfig.HealthCheckPeriod = 1 * time.Minute
+
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.NewWithConfig(ctxWithTimeout, poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create database pool: %w", err)
+	}
+
+	if err = pool.Ping(ctxWithTimeout); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	return pool, nil
+}
+
+//go:embed ../../../migrations/*.sql
+var migrationsFS embed.FS
+
+func runMigrations(dsn string) error {
+	source, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to create iofs source: %w", err)
+	}
+
+	m, err := migrate.NewWithSourceInstance("iofs", source, dsn)
+	if err != nil {
+		return fmt.Errorf("failed to create migration instance: %w", err)
+	}
+	defer m.Close()
+
+	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+	return nil
+}
