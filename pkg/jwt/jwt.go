@@ -53,8 +53,12 @@ func (g *Generator) ValidateToken(tokenString string) (int64, error) {
 	}
 
 	userID, err := strconv.ParseInt(claims.Subject, 10, 64)
-	if err != nil || userID <= 0 {
+	if err != nil {
 		return 0, fmt.Errorf("invalid user ID: %w", err)
 	}
+	if userID <= 0 {
+		return 0, fmt.Errorf("user ID must be positive: %d", userID)
+	}
+
 	return userID, nil
 }

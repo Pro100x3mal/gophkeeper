@@ -46,6 +46,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 	if cfg.JWTSecret == "" {
 		return nil, errors.New("JWT secret is required")
 	}
+	if (cfg.TLSCertFile == "") != (cfg.TLSKeyFile == "") {
+		return nil, errors.New("both TLS certificate and key files must be specified or none of them")
+	}
 
 	ctx := context.Background()
 	db, err := initDB(ctx, cfg.DatabaseDSN)
@@ -92,13 +95,14 @@ func (a *App) Run() error {
 
 	serverErrCh := make(chan error, 1)
 	go func() {
-		a.logger.Info("Starting HTTP server", zap.String("address", a.config.ServerAddr))
 		if a.config.TLSCertFile != "" && a.config.TLSKeyFile != "" {
+			a.logger.Info("Starting HTTPS server", zap.String("address", a.config.ServerAddr))
 			serverErrCh <- a.server.ListenAndServeTLS(a.config.TLSCertFile, a.config.TLSKeyFile)
-		} else {
-			serverErrCh <- a.server.ListenAndServe()
+			return
 		}
 
+		a.logger.Info("Starting HTTP server", zap.String("address", a.config.ServerAddr))
+		serverErrCh <- a.server.ListenAndServe()
 	}()
 
 	var serverErr error
