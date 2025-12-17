@@ -163,7 +163,7 @@ func initDB(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-//go:embed ../../../migrations/*.sql
+//go:embed migrations/*.sql
 var migrationsFS embed.FS
 
 func runMigrations(dsn string) error {
