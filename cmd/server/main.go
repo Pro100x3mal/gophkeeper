@@ -20,7 +20,7 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	application, err := app.NewApp(cfg)
+	application, err := app.NewApp(cfg, buildVersion, buildDate)
 	if err != nil {
 		log.Fatalf("failed to initialize application: %v", err)
 	}

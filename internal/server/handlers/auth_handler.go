@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
@@ -44,7 +43,7 @@ type AuthResponse struct {
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	if !strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+	if !isJSON(r) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -71,21 +70,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := AuthResponse{
+	writeJSON(w, http.StatusCreated, AuthResponse{
 		Token:  token,
 		UserID: user.ID,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	if err = json.NewEncoder(w).Encode(resp); err != nil {
-		h.logger.Error("failed to encode response", zap.Error(err))
-		return
-	}
+	})
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	if !strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+	if !isJSON(r) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -112,15 +104,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := AuthResponse{
+	writeJSON(w, http.StatusOK, AuthResponse{
 		Token:  token,
 		UserID: user.ID,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err = json.NewEncoder(w).Encode(resp); err != nil {
-		h.logger.Error("failed to encode response", zap.Error(err))
-		return
-	}
+	})
 }

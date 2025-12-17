@@ -12,6 +12,7 @@ import (
 
 	"github.com/Pro100x3mal/gophkeeper/internal/server/config"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/handlers"
+	"github.com/Pro100x3mal/gophkeeper/internal/server/middleware"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
 	"github.com/Pro100x3mal/gophkeeper/pkg/jwt"
@@ -25,13 +26,15 @@ import (
 )
 
 type App struct {
-	config *config.Config
-	logger *zap.Logger
-	db     *pgxpool.Pool
-	server *http.Server
+	config       *config.Config
+	logger       *zap.Logger
+	db           *pgxpool.Pool
+	server       *http.Server
+	buildVersion string
+	buildDate    string
 }
 
-func NewApp(cfg *config.Config) (*App, error) {
+func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 	log, err := logger.New(cfg.LogLevel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger: %w", err)
@@ -67,11 +70,22 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 	userRepo := repositories.NewUserRepository(db)
 	authService := services.NewAuthService(userRepo, jwtGen)
-	authHandler := handlers.NewAuthHandler(authService, log)
+	authHandler := handlers.NewAuthHandler(authService, appLogger)
+	infoHandler := handlers.NewInfoHandler(buildVersion, buildDate)
 
 	r := chi.NewRouter()
-	r.Post("/api/v1/register", authHandler.Register)
-	r.Post("/api/v1/login", authHandler.Login)
+	r.Use(middleware.Logger(appLogger))
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/health", infoHandler.HealthCheck)
+		r.Get("/version", infoHandler.Version)
+
+		r.Post("/register", authHandler.Register)
+		r.Post("/login", authHandler.Login)
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Auth(jwtGen, appLogger))
+		})
+	})
 
 	server := &http.Server{
 		Addr:         cfg.ServerAddr,
@@ -82,10 +96,12 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}
 
 	return &App{
-		config: cfg,
-		logger: log,
-		db:     db,
-		server: server,
+		config:       cfg,
+		logger:       appLogger,
+		db:           db,
+		server:       server,
+		buildVersion: buildVersion,
+		buildDate:    buildDate,
 	}, nil
 }
 
