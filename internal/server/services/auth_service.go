@@ -8,6 +8,7 @@ import (
 	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/models"
 	"github.com/Pro100x3mal/gophkeeper/pkg/jwt"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -15,7 +16,7 @@ var ErrInvalidCredentials = errors.New("invalid credentials")
 
 type UserRepoInterface interface {
 	CreateUser(ctx context.Context, user *models.User) error
-	GetUserByID(ctx context.Context, id int64) (*models.User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*models.User, error)
 }
 type AuthService struct {
@@ -37,6 +38,7 @@ func (as *AuthService) Register(ctx context.Context, username, password string) 
 	}
 
 	user := &models.User{
+		ID:           uuid.New(),
 		Username:     username,
 		PasswordHash: string(hashedPassword),
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Pro100x3mal/gophkeeper/models"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -26,13 +27,13 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 
 func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
 	query := `
-		INSERT INTO users (username, password_hash)
-		VALUES ($1, $2)
-		RETURNING id, created_at, updated_at
+		INSERT INTO users (id, username, password_hash)
+		VALUES ($1, $2, $3)
+		RETURNING created_at, updated_at
 	`
 
-	if err := r.db.QueryRow(ctx, query, user.Username, user.PasswordHash).
-		Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt); err != nil {
+	if err := r.db.QueryRow(ctx, query, user.ID, user.Username, user.PasswordHash).
+		Scan(&user.CreatedAt, &user.UpdatedAt); err != nil {
 		if isUniqueViolation(err) {
 			return ErrUserAlreadyExists
 		}
@@ -47,7 +48,7 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
-func (r *UserRepository) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
+func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	query := `
 		SELECT id, username, password_hash, created_at, updated_at
 		FROM users

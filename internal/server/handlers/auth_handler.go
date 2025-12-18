@@ -9,6 +9,7 @@ import (
 	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
 	"github.com/Pro100x3mal/gophkeeper/models"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -38,8 +39,8 @@ type LoginRequest struct {
 }
 
 type AuthResponse struct {
-	Token  string `json:"token"`
-	UserID int64  `json:"user_id"`
+	Token  string    `json:"token"`
+	UserID uuid.UUID `json:"user_id"`
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Pro100x3mal/gophkeeper/pkg/jwt"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -43,11 +44,11 @@ func Auth(jwtGen *jwt.Generator, logger *zap.Logger) func(http.Handler) http.Han
 	}
 }
 
-func GetUserIDFromContext(ctx context.Context) (int64, bool) {
+func GetUserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	val := ctx.Value(userIDContextKey)
 	if val == nil {
-		return 0, false
+		return uuid.Nil, false
 	}
-	id, ok := val.(int64)
+	id, ok := val.(uuid.UUID)
 	return id, ok
 }

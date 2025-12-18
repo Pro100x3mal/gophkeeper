@@ -3,10 +3,10 @@ package jwt
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 var ErrInvalidToken = errors.New("invalid token")
@@ -23,10 +23,10 @@ func NewGenerator(secret string, expiration time.Duration) *Generator {
 	}
 }
 
-func (g *Generator) GenerateToken(userID int64) (string, error) {
+func (g *Generator) GenerateToken(userID uuid.UUID) (string, error) {
 	now := time.Now()
 	claims := jwt.RegisteredClaims{
-		Subject:   strconv.FormatInt(userID, 10),
+		Subject:   userID.String(),
 		ExpiresAt: jwt.NewNumericDate(now.Add(g.expiration)),
 		IssuedAt:  jwt.NewNumericDate(now),
 		NotBefore: jwt.NewNumericDate(now),
@@ -36,7 +36,7 @@ func (g *Generator) GenerateToken(userID int64) (string, error) {
 	return token.SignedString(g.secret)
 }
 
-func (g *Generator) ValidateToken(tokenString string) (int64, error) {
+func (g *Generator) ValidateToken(tokenString string) (uuid.UUID, error) {
 	claims := &jwt.RegisteredClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -45,19 +45,16 @@ func (g *Generator) ValidateToken(tokenString string) (int64, error) {
 		return g.secret, nil
 	})
 	if err != nil {
-		return 0, err
+		return uuid.Nil, err
 	}
 
 	if !token.Valid {
-		return 0, ErrInvalidToken
+		return uuid.Nil, ErrInvalidToken
 	}
 
-	userID, err := strconv.ParseInt(claims.Subject, 10, 64)
+	userID, err := uuid.Parse(claims.Subject)
 	if err != nil {
-		return 0, fmt.Errorf("invalid user ID: %w", err)
-	}
-	if userID <= 0 {
-		return 0, fmt.Errorf("user ID must be positive: %d", userID)
+		return uuid.Nil, fmt.Errorf("invalid user ID: %w", err)
 	}
 
 	return userID, nil
