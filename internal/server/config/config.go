@@ -16,6 +16,7 @@ type Config struct {
 	JWTExpiration time.Duration
 	TLSCertFile   string
 	TLSKeyFile    string
+	MasterKey     string
 }
 
 func Load() (*Config, error) {
@@ -29,6 +30,7 @@ func Load() (*Config, error) {
 	flag.StringVar(&cfg.JWTSecret, "jwt-secret", getEnv("JWT_SECRET", ""), "JWT secret key")
 	flag.StringVar(&cfg.TLSCertFile, "tls-cert", getEnv("TLS_CERT_FILE", ""), "TLS certificate file")
 	flag.StringVar(&cfg.TLSKeyFile, "tls-key", getEnv("TLS_KEY_FILE", ""), "TLS key file")
+	flag.StringVar(&cfg.MasterKey, "master-key", getEnv("MASTER_KEY", ""), "Master encryption key in base64 format")
 	flag.DurationVar(&cfg.JWTExpiration, "jwt-exp", getEnvDuration("JWT_EXPIRATION", 24*time.Hour), "JWT expiration time")
 
 	flag.Parse()

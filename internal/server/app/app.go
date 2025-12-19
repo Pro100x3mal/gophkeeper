@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"embed"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,6 +17,7 @@ import (
 	"github.com/Pro100x3mal/gophkeeper/internal/server/middleware"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
+	"github.com/Pro100x3mal/gophkeeper/pkg/crypto"
 	"github.com/Pro100x3mal/gophkeeper/pkg/jwt"
 	"github.com/Pro100x3mal/gophkeeper/pkg/logger"
 	"github.com/go-chi/chi/v5"
@@ -49,8 +52,16 @@ func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 	if cfg.JWTSecret == "" {
 		return nil, errors.New("JWT secret is required")
 	}
+	if cfg.MasterKey == "" {
+		return nil, errors.New("master encryption key is required")
+	}
 	if (cfg.TLSCertFile == "") != (cfg.TLSKeyFile == "") {
 		return nil, errors.New("both TLS certificate and key files must be specified or none of them")
+	}
+
+	masterKey, err := decodeMasterKey(cfg.MasterKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode master key: %w", err)
 	}
 
 	ctx := context.Background()
@@ -69,9 +80,15 @@ func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 	jwtGen := jwt.NewGenerator(cfg.JWTSecret, cfg.JWTExpiration)
 
 	userRepo := repositories.NewUserRepository(db)
+	itemRepo := repositories.NewItemRepository(db)
+	keyRepo := repositories.NewKeyRepository(db)
+
 	authService := services.NewAuthService(userRepo, jwtGen)
-	authHandler := handlers.NewAuthHandler(authService, appLogger)
+	itemService := services.NewItemService(keyRepo, itemRepo, masterKey)
+
 	infoHandler := handlers.NewInfoHandler(buildVersion, buildDate)
+	authHandler := handlers.NewAuthHandler(authService, appLogger)
+	itemHandler := handlers.NewItemHandler(itemService, appLogger)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger(appLogger))
@@ -84,6 +101,13 @@ func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Auth(jwtGen, appLogger))
+
+			r.Route("/items", func(r chi.Router) {
+				r.Post("/", itemHandler.Create)
+				r.Get("/", itemHandler.List)
+				r.Get("/{id}", itemHandler.Get)
+				r.Delete("/{id}", itemHandler.Delete)
+			})
 		})
 	})
 
@@ -93,6 +117,9 @@ func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
+		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS13,
+		},
 	}
 
 	return &App{
@@ -198,4 +225,16 @@ func runMigrations(dsn string) error {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 	return nil
+}
+
+func decodeMasterKey(masterKey string) ([]byte, error) {
+	decodedKey, err := base64.StdEncoding.DecodeString(masterKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode master key: %w", err)
+	}
+
+	if len(decodedKey) != crypto.KeySize {
+		return nil, errors.New("invalid master key length")
+	}
+	return decodedKey, nil
 }

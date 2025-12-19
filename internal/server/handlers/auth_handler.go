@@ -23,8 +23,9 @@ type AuthHandler struct {
 }
 
 func NewAuthHandler(authSvc AuthServiceInterface, logger *zap.Logger) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc,
-		logger: logger.Named("auth_handler"),
+	return &AuthHandler{
+		authSvc: authSvc,
+		logger:  logger.Named("auth_handler"),
 	}
 }
 
