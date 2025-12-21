@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -39,11 +40,10 @@ func (r *KeyRepository) Load(ctx context.Context, userID uuid.UUID) ([]byte, err
 	`
 	var enc []byte
 	if err := r.db.QueryRow(ctx, query, userID).Scan(&enc); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrKeyNotFound
 		}
 		return nil, fmt.Errorf("failed to load encryption key: %w", err)
 	}
 	return enc, nil
-
 }

@@ -35,7 +35,7 @@ type Item struct {
 	CreatedAt        time.Time       `json:"created_at"`
 	UpdatedAt        time.Time       `json:"updated_at"`
 }
-type PlainItem struct {
+type ItemPlain struct {
 	UserID   uuid.UUID
 	Type     ItemType
 	Title    string

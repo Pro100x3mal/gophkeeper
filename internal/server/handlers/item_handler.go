@@ -28,18 +28,18 @@ func NewItemHandler(itemSvc ItemService, logger *zap.Logger) *ItemHandler {
 	}
 }
 
-func (ih *ItemHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (ih *ItemHandler) Create(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 
 }
 
-func (ih *ItemHandler) List(w http.ResponseWriter, r *http.Request) {
+func (ih *ItemHandler) List(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 
 }
 
-func (ih *ItemHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (ih *ItemHandler) Get(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 
 }
 
-func (ih *ItemHandler) Delete(w http.ResponseWriter, r *http.Request) {
+func (ih *ItemHandler) Delete(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 
 }
