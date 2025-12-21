@@ -62,6 +62,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 		}
 		return nil, fmt.Errorf("failed to get user by id: %w", err)
 	}
+
 	return &user, nil
 }
 
@@ -79,5 +80,6 @@ func (r *UserRepository) GetUserByUsername(ctx context.Context, username string)
 		}
 		return nil, fmt.Errorf("failed to get user by username: %w", err)
 	}
+
 	return &user, nil
 }

@@ -10,7 +10,7 @@ import (
 )
 
 type ItemService interface {
-	CreateItem(ctx context.Context, item *models.Item) (*models.Item, error)
+	CreateItem(ctx context.Context, itemReq *models.CreateItemRequest) (*models.Item, error)
 	ListItems(ctx context.Context, userID uuid.UUID) ([]*models.Item, error)
 	GetItem(ctx context.Context, userID, itemID uuid.UUID) (*models.Item, error)
 	DeleteItem(ctx context.Context, userID, itemID uuid.UUID) error

@@ -1,7 +1,6 @@
 package models
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,20 +24,19 @@ const (
 )
 
 type Item struct {
-	ID               uuid.UUID       `json:"id"`
-	UserID           uuid.UUID       `json:"user_id"`
-	Type             ItemType        `json:"type"`
-	Title            string          `json:"title"`
-	Metadata         json.RawMessage `json:"metadata"`
-	DataEncrypted    []byte          `json:"data_encrypted,omitempty"`
-	DataEncryptedKey []byte          `json:"data_encrypted_key,omitempty"`
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
+	ID               uuid.UUID `json:"id"`
+	UserID           uuid.UUID `json:"user_id"`
+	Type             ItemType  `json:"type"`
+	Title            string    `json:"title"`
+	Metadata         string    `json:"metadata"`
+	DataEncrypted    []byte    `json:"data_encrypted,omitempty"`
+	DataKeyEncrypted []byte    `json:"data_key_encrypted,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
-type ItemPlain struct {
-	UserID   uuid.UUID
-	Type     ItemType
-	Title    string
-	Metadata json.RawMessage
-	Data     []byte
+type CreateItemRequest struct {
+	Type       string `json:"type"`
+	Title      string `json:"title"`
+	Metadata   string `json:"metadata"`
+	DataBase64 string `json:"data_base64,omitempty"`
 }

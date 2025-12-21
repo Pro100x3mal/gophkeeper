@@ -14,7 +14,7 @@ type KeyRepoInterface interface {
 
 type ItemRepoInterface interface {
 	Create(ctx context.Context, item *models.Item) error
-	GetByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Item, error)
+	GetByUserID(ctx context.Context, userID uuid.UUID) (*models.Item, error)
 	DeleteByUserID(ctx context.Context, userID uuid.UUID) error
 	ListByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Item, error)
 }
@@ -33,7 +33,7 @@ func NewItemService(keyRepo KeyRepoInterface, itemRepo ItemRepoInterface, master
 	}
 }
 
-func (is *ItemService) CreateItem(ctx context.Context, plainItem *models.Item) (*models.Item, error) {
+func (is *ItemService) CreateItem(ctx context.Context, itemReq *models.CreateItemRequest) (*models.Item, error) {
 	return nil, nil
 }
 

@@ -20,10 +20,10 @@ CREATE TABLE IF NOT EXISTS encryption_keys
 CREATE TABLE IF NOT EXISTS items
 (
     id                 UUID PRIMARY KEY,
-    user_id            UUID  NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    type               TEXT  NOT NULL,
-    title              TEXT  NOT NULL           DEFAULT '',
-    metadata           JSONB NOT NULL           DEFAULT '{}',
+    user_id            UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    type               TEXT NOT NULL,
+    title              TEXT NOT NULL            DEFAULT '',
+    metadata           TEXT NOT NULL            DEFAULT '',
     data_encrypted     BYTEA,
     data_key_encrypted BYTEA,
     created_at         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
