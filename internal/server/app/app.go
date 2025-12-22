@@ -103,10 +103,10 @@ func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 			r.Use(middleware.Auth(jwtGen, appLogger))
 
 			r.Route("/items", func(r chi.Router) {
-				r.Post("/", middleware.RequireUser(itemHandler.Create))
-				r.Get("/", middleware.RequireUser(itemHandler.List))
-				r.Get("/{id}", middleware.RequireUser(itemHandler.Get))
-				r.Delete("/{id}", middleware.RequireUser(itemHandler.Delete))
+				r.Post("/", middleware.RequireUser(itemHandler.CreateItem))
+				r.Get("/", middleware.RequireUser(itemHandler.ListItems))
+				r.Get("/{id}", middleware.RequireUser(itemHandler.GetItem))
+				r.Delete("/{id}", middleware.RequireUser(itemHandler.DeleteItem))
 			})
 		})
 	})

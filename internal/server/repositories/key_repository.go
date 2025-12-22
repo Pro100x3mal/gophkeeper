@@ -10,8 +10,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrKeyNotFound = fmt.Errorf("encryption key not found")
-
 type KeyRepository struct {
 	db *pgxpool.Pool
 }
@@ -24,7 +22,7 @@ func (r *KeyRepository) Save(ctx context.Context, userID uuid.UUID, enc []byte) 
 	query := `
 		INSERT INTO encryption_keys (user_id, key_encrypted) 
 		VALUES ($1, $2)
-		ON CONFLICT (user_id) DO UPDATE SET key_encrypted = EXCLUDED.key_encrypted, updated_at = NOW()
+		ON CONFLICT (user_id) DO UPDATE SET key_encrypted = EXCLUDED.key_encrypted
 	`
 	if _, err := r.db.Exec(ctx, query, userID, enc); err != nil {
 		return fmt.Errorf("failed to save encryption key: %w", err)
@@ -32,7 +30,7 @@ func (r *KeyRepository) Save(ctx context.Context, userID uuid.UUID, enc []byte) 
 	return nil
 }
 
-func (r *KeyRepository) Load(ctx context.Context, userID uuid.UUID) ([]byte, error) {
+func (r *KeyRepository) Load(ctx context.Context, userID uuid.UUID) ([]byte, bool, error) {
 	query := `
 		SELECT key_encrypted 
 		FROM encryption_keys 
@@ -41,9 +39,9 @@ func (r *KeyRepository) Load(ctx context.Context, userID uuid.UUID) ([]byte, err
 	var enc []byte
 	if err := r.db.QueryRow(ctx, query, userID).Scan(&enc); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrKeyNotFound
+			return nil, false, nil
 		}
-		return nil, fmt.Errorf("failed to load encryption key: %w", err)
+		return nil, false, fmt.Errorf("failed to load encryption key: %w", err)
 	}
-	return enc, nil
+	return enc, true, nil
 }
