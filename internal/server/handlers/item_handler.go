@@ -19,6 +19,7 @@ type ItemService interface {
 	CreateItem(ctx context.Context, req *models.CreateItemRequest, userID uuid.UUID) (*models.Item, error)
 	ListItems(ctx context.Context, userID uuid.UUID) ([]*models.Item, error)
 	GetItem(ctx context.Context, userID, itemID uuid.UUID) (*models.Item, []byte, error)
+	UpdateItem(ctx context.Context, userID, itemID uuid.UUID, req *models.UpdateItemRequest) (*models.Item, error)
 	DeleteItem(ctx context.Context, userID, itemID uuid.UUID) error
 }
 
@@ -37,10 +38,6 @@ func NewItemHandler(itemSvc ItemService, logger *zap.Logger) *ItemHandler {
 type itemResponse struct {
 	Item *models.Item `json:"item"`
 	Data string       `json:"data_base64,omitempty"`
-}
-
-type listItemsResponse struct {
-	Items []*models.Item `json:"items"`
 }
 
 func (h *ItemHandler) CreateItem(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
@@ -72,6 +69,47 @@ func (h *ItemHandler) CreateItem(w http.ResponseWriter, r *http.Request, userID 
 	}
 
 	writeJSON(w, http.StatusCreated, itemResponse{Item: item})
+}
+
+func (h *ItemHandler) UpdateItem(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
+	if !isJSON(r) {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	var req models.UpdateItemRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	if req.Type == nil && req.Title == nil && req.Metadata == nil && req.DataBase64 == nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	item, err := h.itemSvc.UpdateItem(r.Context(), userID, itemID, &req)
+	if err != nil {
+		if errors.Is(err, services.ErrInvalidItemType) {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		if errors.Is(err, repositories.ErrItemNotFound) {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return
+		}
+		h.logger.Error("failed to update item", zap.Error(err))
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, itemResponse{Item: item})
 }
 
 func (h *ItemHandler) ListItems(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {

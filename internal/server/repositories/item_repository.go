@@ -67,6 +67,65 @@ func (r *ItemRepository) Create(ctx context.Context, item *models.Item, encData 
 	return nil
 }
 
+func (r *ItemRepository) Update(ctx context.Context, userID, itemID uuid.UUID, req *models.UpdateItemRequest, encData *models.EncryptedData) (*models.Item, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	itemQuery := `
+		UPDATE items
+		SET
+			type = COALESCE($3::text, type),
+			title = COALESCE($4, title),
+			metadata = COALESCE($5, metadata),
+			updated_at = NOW()
+		WHERE id = $1 AND user_id = $2
+		RETURNING id, user_id, type, title, metadata, created_at, updated_at
+	`
+
+	var item models.Item
+	if err = tx.QueryRow(ctx, itemQuery,
+		itemID, userID, req.Type, req.Title, req.Metadata).
+		Scan(&item.ID, &item.UserID, &item.Type, &item.Title, &item.Metadata, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrItemNotFound
+		}
+		return nil, fmt.Errorf("failed to update item: %w", err)
+	}
+
+	if encData != nil {
+		encData.ItemID = item.ID
+
+		dataQuery := `
+			INSERT INTO encrypted_data (id, item_id, data_encrypted, data_key_encrypted)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (item_id) DO UPDATE
+			SET 
+			    data_encrypted = EXCLUDED.data_encrypted,
+    			data_key_encrypted = EXCLUDED.data_key_encrypted
+			RETURNING id
+		`
+
+		if err = tx.QueryRow(ctx, dataQuery,
+			encData.ID, encData.ItemID, encData.DataEncrypted, encData.DataKeyEncrypted).
+			Scan(&encData.ID); err != nil {
+			return nil, fmt.Errorf("failed to update encrypted-data: %w", err)
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &item, nil
+}
+
 func (r *ItemRepository) GetByID(ctx context.Context, userID, itemID uuid.UUID) (*models.Item, *models.EncryptedData, error) {
 	itemQuery := `
 		SELECT id, user_id, type, title, metadata, created_at, updated_at

@@ -46,3 +46,10 @@ type CreateItemRequest struct {
 	Metadata   string   `json:"metadata"`
 	DataBase64 string   `json:"data_base64,omitempty"`
 }
+
+type UpdateItemRequest struct {
+	Type       *ItemType `json:"type,omitempty"`
+	Title      *string   `json:"title,omitempty"`
+	Metadata   *string   `json:"metadata,omitempty"`
+	DataBase64 *string   `json:"data_base64,omitempty"`
+}

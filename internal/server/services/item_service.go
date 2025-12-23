@@ -22,6 +22,12 @@ type ItemRepoInterface interface {
 	GetByID(ctx context.Context, userID, itemID uuid.UUID) (*models.Item, *models.EncryptedData, error)
 	DeleteByID(ctx context.Context, userID uuid.UUID, itemID uuid.UUID) error
 	ListByUser(ctx context.Context, userID uuid.UUID) ([]*models.Item, error)
+	Update(
+		ctx context.Context,
+		userID, itemID uuid.UUID,
+		req *models.UpdateItemRequest,
+		encData *models.EncryptedData,
+	) (*models.Item, error)
 }
 
 type ItemService struct {
@@ -90,6 +96,53 @@ func (s *ItemService) CreateItem(ctx context.Context, req *models.CreateItemRequ
 		return nil, fmt.Errorf("failed to create item: %w", err)
 	}
 
+	return item, nil
+}
+
+func (s *ItemService) UpdateItem(ctx context.Context, userID, itemID uuid.UUID, req *models.UpdateItemRequest) (*models.Item, error) {
+	if req.Type != nil && !isValidType(*req.Type) {
+		return nil, ErrInvalidItemType
+	}
+
+	var encData *models.EncryptedData
+
+	if req.DataBase64 != nil && len(*req.DataBase64) > 0 {
+		payload, err := decodeBase64(*req.DataBase64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode base64 data: %w", err)
+		}
+		userKey, err := s.loadOrCreateKey(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load or create key: %w", err)
+		}
+
+		dataKey, err := crypto.KeyGen()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate data key: %w", err)
+		}
+
+		dataEncrypted, err := crypto.Encrypt(dataKey, payload)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt data: %w", err)
+		}
+
+		dataKeyEncrypted, err := crypto.Encrypt(userKey, dataKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt data key: %w", err)
+		}
+
+		encData = &models.EncryptedData{
+			ID:               uuid.New(),
+			ItemID:           itemID,
+			DataEncrypted:    dataEncrypted,
+			DataKeyEncrypted: dataKeyEncrypted,
+		}
+	}
+
+	item, err := s.itemRepo.Update(ctx, userID, itemID, req, encData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update item: %w", err)
+	}
 	return item, nil
 }
 

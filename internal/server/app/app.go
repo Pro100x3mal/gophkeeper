@@ -106,6 +106,7 @@ func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 				r.Post("/", middleware.RequireUser(itemHandler.CreateItem))
 				r.Get("/", middleware.RequireUser(itemHandler.ListItems))
 				r.Get("/{id}", middleware.RequireUser(itemHandler.GetItem))
+				r.Put("/{id}", middleware.RequireUser(itemHandler.UpdateItem))
 				r.Delete("/{id}", middleware.RequireUser(itemHandler.DeleteItem))
 			})
 		})
