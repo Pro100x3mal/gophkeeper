@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gophkeeper-postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gophkeeper"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gophkeeper-network
+
+  server:
+    build:
+      context: .
+      target: server
+    container_name: gophkeeper-server
+    env_file:
+      - .env
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVER_ADDR: ${SERVER_ADDR:-0.0.0.0:8080}
+      DATABASE_DSN: ${DATABASE_DSN}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-24h}
+      MASTER_KEY: ${MASTER_KEY}
+      TLS_CERT_FILE: ${TLS_CERT_FILE:-}
+      TLS_KEY_FILE: ${TLS_KEY_FILE:-}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gophkeeper-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  gophkeeper-network:
+    driver: bridge
