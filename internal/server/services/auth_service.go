@@ -1,3 +1,7 @@
+// Package services provides business logic layer for the GophKeeper server.
+//
+// This package implements services for authentication and item management,
+// handling encryption, key management, and user authentication workflows.
 package services
 
 import (
@@ -12,18 +16,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// ErrInvalidCredentials is returned when username or password is incorrect.
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
+// UserRepoInterface defines the user repository contract.
 type UserRepoInterface interface {
 	CreateUser(ctx context.Context, user *models.User) error
 	GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*models.User, error)
 }
+
+// AuthService handles user authentication and registration operations.
 type AuthService struct {
 	userRepo UserRepoInterface
 	jwtGen   *jwt.Generator
 }
 
+// NewAuthService creates a new authentication service instance.
 func NewAuthService(userRepo UserRepoInterface, jwtGen *jwt.Generator) *AuthService {
 	return &AuthService{
 		userRepo: userRepo,
@@ -31,6 +40,7 @@ func NewAuthService(userRepo UserRepoInterface, jwtGen *jwt.Generator) *AuthServ
 	}
 }
 
+// Register creates a new user account with hashed password and returns a JWT token.
 func (as *AuthService) Register(ctx context.Context, username, password string) (*models.User, string, error) {
 	hashedPassword, err := hashPassword(password)
 	if err != nil {
@@ -58,6 +68,8 @@ func (as *AuthService) Register(ctx context.Context, username, password string) 
 	return user, token, nil
 }
 
+// Login authenticates a user by username and password, returning a JWT token.
+// Returns ErrInvalidCredentials if username or password is incorrect.
 func (as *AuthService) Login(ctx context.Context, username, password string) (*models.User, string, error) {
 	user, err := as.userRepo.GetUserByUsername(ctx, username)
 	if err != nil {
@@ -79,10 +91,12 @@ func (as *AuthService) Login(ctx context.Context, username, password string) (*m
 	return user, token, nil
 }
 
+// hashPassword hashes a password using bcrypt with default cost.
 func hashPassword(password string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 }
 
+// comparePasswordHash verifies a password against its bcrypt hash.
 func comparePasswordHash(hashedPassword string, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }

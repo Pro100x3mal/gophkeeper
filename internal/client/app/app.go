@@ -1,3 +1,7 @@
+// Package app provides the main application logic for the GophKeeper client.
+//
+// This package implements a CLI interface for interacting with the GophKeeper server,
+// including authentication, item management, and local caching functionality.
 package app
 
 import (
@@ -20,6 +24,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// CacheRepository defines the local cache repository contract.
 type CacheRepository interface {
 	GetToken() string
 	SetToken(token string)
@@ -28,6 +33,7 @@ type CacheRepository interface {
 	Save() error
 }
 
+// ApiService defines the API client service contract.
 type ApiService interface {
 	SetToken(token string)
 	Register(username, password string) (string, error)
@@ -39,6 +45,7 @@ type ApiService interface {
 	DeleteItem(id uuid.UUID) error
 }
 
+// App represents the main client application with its dependencies.
 type App struct {
 	config *config.Config
 	logger *zap.Logger
@@ -46,6 +53,8 @@ type App struct {
 	cache  CacheRepository
 }
 
+// NewApp creates and initializes a new client application instance.
+// Loads the cache, configures the HTTP client, and sets up the API service.
 func NewApp(cfg *config.Config) (*App, error) {
 	log, err := logger.New(cfg.LogLevel)
 	if err != nil {
@@ -71,11 +80,15 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}, nil
 }
 
+// Close performs cleanup operations before application shutdown.
+// Saves the cache and syncs the logger.
 func (a *App) Close() error {
 	defer a.logger.Sync()
 	return a.cache.Save()
 }
 
+// Run starts the CLI application and processes commands.
+// Initializes the command tree and executes the root command.
 func (a *App) Run() error {
 	a.logger.Info("Starting client", zap.String("server_addr", a.config.ServerAddr))
 	defer a.logger.Info("Stopping client")

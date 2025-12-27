@@ -1,3 +1,8 @@
+// Package main provides the entry point for the GophKeeper client application.
+//
+// The client provides a command-line interface for managing sensitive data
+// including credentials, text, binary data, and credit cards with local caching
+// and server synchronization.
 package main
 
 import (
@@ -8,8 +13,10 @@ import (
 )
 
 var (
+	// buildVersion contains the version of the application, set at build time.
 	buildVersion = "dev"
-	buildDate    = "unknown"
+	// buildDate contains the build timestamp, set at build time.
+	buildDate = "unknown"
 )
 
 func main() {

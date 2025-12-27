@@ -1,3 +1,7 @@
+// Package main provides the entry point for the GophKeeper server application.
+//
+// The server provides a secure password and sensitive data management system
+// with encryption, authentication, and item storage capabilities.
 package main
 
 import (
@@ -8,8 +12,10 @@ import (
 )
 
 var (
+	// buildVersion contains the version of the application, set at build time.
 	buildVersion = "dev"
-	buildDate    = "unknown"
+	// buildDate contains the build timestamp, set at build time.
+	buildDate = "unknown"
 )
 
 func main() {

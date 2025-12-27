@@ -1,3 +1,7 @@
+// Package config provides configuration management for the GophKeeper client.
+//
+// Configuration is loaded from environment variables (via .env file) and command-line flags.
+// Command-line flags take precedence over environment variables.
 package config
 
 import (
@@ -9,16 +13,27 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Config holds the client configuration parameters.
 type Config struct {
-	ServerAddr   string
-	LogLevel     string
-	TLSInsecure  bool
-	CachePath    string
-	TokenPath    string
+	// ServerAddr is the address of the GophKeeper server.
+	ServerAddr string
+	// LogLevel specifies the logging verbosity.
+	LogLevel string
+	// TLSInsecure disables TLS certificate verification when true.
+	TLSInsecure bool
+	// CachePath is the path to the local cache file.
+	CachePath string
+	// TokenPath is the path to the authentication token file.
+	TokenPath string
+	// BuildVersion contains the version of the application.
 	BuildVersion string
-	BuildDate    string
+	// BuildDate contains the build timestamp.
+	BuildDate string
 }
 
+// Load reads configuration from environment variables and command-line flags.
+// It first attempts to load a .env file, then parses command-line flags.
+// Returns the loaded configuration or an error if loading fails.
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
@@ -44,6 +59,7 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// getEnv retrieves an environment variable or returns a default value if not set.
 func getEnv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
@@ -51,6 +67,7 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+// getBoolEnv retrieves a boolean from an environment variable or returns a default value.
 func getBoolEnv(key string, defaultValue bool) bool {
 	if value, ok := os.LookupEnv(key); ok {
 		if v, err := strconv.ParseBool(value); err == nil {

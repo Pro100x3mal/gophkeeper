@@ -13,15 +13,19 @@ import (
 	"go.uber.org/zap"
 )
 
+// AuthServiceInterface defines the authentication service contract.
 type AuthServiceInterface interface {
 	Register(ctx context.Context, username, password string) (*models.User, string, error)
 	Login(ctx context.Context, username, password string) (*models.User, string, error)
 }
+
+// AuthHandler handles HTTP requests for user authentication.
 type AuthHandler struct {
 	authSvc AuthServiceInterface
 	logger  *zap.Logger
 }
 
+// NewAuthHandler creates a new authentication handler instance.
 func NewAuthHandler(authSvc AuthServiceInterface, logger *zap.Logger) *AuthHandler {
 	return &AuthHandler{
 		authSvc: authSvc,
@@ -29,21 +33,26 @@ func NewAuthHandler(authSvc AuthServiceInterface, logger *zap.Logger) *AuthHandl
 	}
 }
 
+// RegisterRequest represents a user registration request.
 type RegisterRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// LoginRequest represents a user login request.
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// AuthResponse represents the authentication response with token and user ID.
 type AuthResponse struct {
 	Token  string    `json:"token"`
 	UserID uuid.UUID `json:"user_id"`
 }
 
+// Register handles user registration requests.
+// Creates a new user account and returns an authentication token.
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if !isJSON(r) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -78,6 +87,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Login handles user login requests.
+// Authenticates the user and returns an authentication token.
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if !isJSON(r) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)

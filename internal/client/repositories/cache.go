@@ -1,3 +1,7 @@
+// Package repositories provides data access layer for the GophKeeper client.
+//
+// This package implements local caching functionality for storing authentication
+// tokens and item metadata.
 package repositories
 
 import (
@@ -10,12 +14,17 @@ import (
 	"github.com/Pro100x3mal/gophkeeper/models"
 )
 
+// Cache manages local storage of authentication tokens and item metadata.
 type Cache struct {
-	Token string                 `json:"token"`
+	// Token is the authentication token for API requests.
+	Token string `json:"token"`
+	// Items is a map of item IDs to item metadata.
 	Items map[string]models.Item `json:"items"`
-	Path  string                 `json:"-"`
+	// Path is the file path for cache persistence.
+	Path string `json:"-"`
 }
 
+// NewCache creates a new cache instance with the specified file path.
 func NewCache(path string) *Cache {
 	return &Cache{
 		Items: make(map[string]models.Item),
@@ -23,18 +32,23 @@ func NewCache(path string) *Cache {
 	}
 }
 
+// GetToken retrieves the stored authentication token.
 func (c *Cache) GetToken() string {
 	return c.Token
 }
 
+// SetToken updates the stored authentication token.
 func (c *Cache) SetToken(token string) {
 	c.Token = token
 }
 
+// ItemsList returns the map of cached items.
 func (c *Cache) ItemsList() map[string]models.Item {
 	return c.Items
 }
 
+// Load reads the cache from disk and populates the cache structure.
+// Returns nil if the cache file doesn't exist.
 func (c *Cache) Load() error {
 	if c.Path == "" {
 		return errors.New("cache path cannot be empty")
@@ -58,6 +72,8 @@ func (c *Cache) Load() error {
 	return nil
 }
 
+// Save writes the cache to disk in JSON format with indentation.
+// Creates the cache directory if it doesn't exist.
 func (c *Cache) Save() error {
 	if c.Path == "" {
 		return errors.New("cache path cannot be empty")

@@ -1,3 +1,7 @@
+// Package config provides configuration management for the GophKeeper server.
+//
+// Configuration is loaded from environment variables (via .env file) and command-line flags.
+// Command-line flags take precedence over environment variables.
 package config
 
 import (
@@ -8,17 +12,31 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Config holds the server configuration parameters.
 type Config struct {
-	LogLevel      string
-	ServerAddr    string
-	DatabaseDSN   string
-	JWTSecret     string
+	// LogLevel specifies the logging verbosity (debug, info, warn, error).
+	LogLevel string
+	// ServerAddr is the address to bind the HTTP/HTTPS server to.
+	ServerAddr string
+	// DatabaseDSN is the PostgreSQL connection string.
+	DatabaseDSN string
+	// JWTSecret is the secret key used for signing JWT tokens.
+	JWTSecret string
+	// JWTExpiration is the duration for which JWT tokens remain valid.
 	JWTExpiration time.Duration
-	TLSCertFile   string
-	TLSKeyFile    string
-	MasterKey     string
+	// TLSCertFile is the path to the TLS certificate file (optional).
+	TLSCertFile string
+	// TLSKeyFile is the path to the TLS private key file (optional).
+	TLSKeyFile string
+	// MasterKey is the base64-encoded master encryption key.
+	MasterKey string
 }
 
+// Load reads configuration from environment variables and command-line flags.
+// It first attempts to load a .env file, then parses command-line flags.
+// Command-line flags take precedence over environment variables.
+//
+// Returns the loaded configuration or an error if loading fails.
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
@@ -38,6 +56,7 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// getEnv retrieves an environment variable or returns a default value if not set.
 func getEnv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
@@ -45,6 +64,8 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+// getEnvDuration retrieves a duration from an environment variable or returns a default value.
+// The environment variable should contain a valid duration string (e.g., "24h", "30m").
 func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 	if value, ok := os.LookupEnv(key); ok {
 		duration, err := time.ParseDuration(value)

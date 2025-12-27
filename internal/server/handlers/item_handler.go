@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// ItemService defines the item management service contract.
 type ItemService interface {
 	CreateItem(ctx context.Context, req *models.CreateItemRequest, userID uuid.UUID) (*models.Item, error)
 	ListItems(ctx context.Context, userID uuid.UUID) ([]*models.Item, error)
@@ -23,11 +24,13 @@ type ItemService interface {
 	DeleteItem(ctx context.Context, userID, itemID uuid.UUID) error
 }
 
+// ItemHandler handles HTTP requests for item management operations.
 type ItemHandler struct {
 	itemSvc ItemService
 	logger  *zap.Logger
 }
 
+// NewItemHandler creates a new item handler instance.
 func NewItemHandler(itemSvc ItemService, logger *zap.Logger) *ItemHandler {
 	return &ItemHandler{
 		itemSvc: itemSvc,
@@ -35,11 +38,14 @@ func NewItemHandler(itemSvc ItemService, logger *zap.Logger) *ItemHandler {
 	}
 }
 
+// itemResponse represents an item response with optional base64-encoded data.
 type itemResponse struct {
 	Item *models.Item `json:"item"`
 	Data string       `json:"data_base64,omitempty"`
 }
 
+// CreateItem handles item creation requests.
+// Creates a new encrypted item for the authenticated user.
 func (h *ItemHandler) CreateItem(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 	if !isJSON(r) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -71,6 +77,8 @@ func (h *ItemHandler) CreateItem(w http.ResponseWriter, r *http.Request, userID 
 	writeJSON(w, http.StatusCreated, itemResponse{Item: item})
 }
 
+// UpdateItem handles item update requests.
+// Updates an existing item's metadata and/or encrypted data.
 func (h *ItemHandler) UpdateItem(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 	if !isJSON(r) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -112,6 +120,8 @@ func (h *ItemHandler) UpdateItem(w http.ResponseWriter, r *http.Request, userID 
 	writeJSON(w, http.StatusOK, itemResponse{Item: item})
 }
 
+// ListItems handles requests to list all items for the authenticated user.
+// Returns item metadata without encrypted data.
 func (h *ItemHandler) ListItems(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 	items, err := h.itemSvc.ListItems(r.Context(), userID)
 	if err != nil {
@@ -123,6 +133,8 @@ func (h *ItemHandler) ListItems(w http.ResponseWriter, r *http.Request, userID u
 	writeJSON(w, http.StatusOK, items)
 }
 
+// GetItem handles requests to retrieve a specific item with its decrypted data.
+// Returns both item metadata and base64-encoded decrypted data.
 func (h *ItemHandler) GetItem(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -148,6 +160,8 @@ func (h *ItemHandler) GetItem(w http.ResponseWriter, r *http.Request, userID uui
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// DeleteItem handles requests to delete a specific item.
+// Permanently removes the item and its encrypted data from the database.
 func (h *ItemHandler) DeleteItem(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {

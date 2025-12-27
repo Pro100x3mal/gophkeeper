@@ -1,3 +1,7 @@
+// Package repositories provides data access layer for the GophKeeper server.
+//
+// This package implements repository pattern for database operations including
+// user management, item storage, and encryption key management.
 package repositories
 
 import (
@@ -13,18 +17,24 @@ import (
 )
 
 var (
+	// ErrUserAlreadyExists is returned when attempting to create a user with an existing username.
 	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrUserNotFound      = errors.New("user not found")
+	// ErrUserNotFound is returned when a user cannot be found by ID or username.
+	ErrUserNotFound = errors.New("user not found")
 )
 
+// UserRepository handles database operations for user entities.
 type UserRepository struct {
 	db *pgxpool.Pool
 }
 
+// NewUserRepository creates a new user repository instance.
 func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 	return &UserRepository{db: db}
 }
 
+// CreateUser inserts a new user into the database.
+// Returns ErrUserAlreadyExists if the username is already taken.
 func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
 	query := `
 		INSERT INTO users (id, username, password_hash)
@@ -43,11 +53,14 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) erro
 	return nil
 }
 
+// isUniqueViolation checks if an error is a PostgreSQL unique constraint violation.
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
+// GetUserByID retrieves a user by their ID.
+// Returns ErrUserNotFound if the user does not exist.
 func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	query := `
 		SELECT id, username, password_hash, created_at, updated_at
@@ -66,6 +79,8 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 	return &user, nil
 }
 
+// GetUserByUsername retrieves a user by their username.
+// Returns ErrUserNotFound if the user does not exist.
 func (r *UserRepository) GetUserByUsername(ctx context.Context, username string) (*models.User, error) {
 	query := `
 		SELECT id, username, password_hash, created_at, updated_at

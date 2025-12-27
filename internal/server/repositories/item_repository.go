@@ -11,16 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ErrItemNotFound is returned when an item cannot be found.
 var ErrItemNotFound = fmt.Errorf("item not found")
 
+// ItemRepository handles database operations for item and encrypted data entities.
 type ItemRepository struct {
 	db *pgxpool.Pool
 }
 
+// NewItemRepository creates a new item repository instance.
 func NewItemRepository(db *pgxpool.Pool) *ItemRepository {
 	return &ItemRepository{db: db}
 }
 
+// Create inserts a new item and its encrypted data into the database within a transaction.
+// The encrypted data is optional and can be nil.
 func (r *ItemRepository) Create(ctx context.Context, item *models.Item, encData *models.EncryptedData) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -67,6 +72,9 @@ func (r *ItemRepository) Create(ctx context.Context, item *models.Item, encData 
 	return nil
 }
 
+// Update modifies an existing item and optionally updates its encrypted data.
+// Only non-nil fields in the request are updated. Uses a transaction to ensure atomicity.
+// Returns ErrItemNotFound if the item doesn't exist or doesn't belong to the user.
 func (r *ItemRepository) Update(ctx context.Context, userID, itemID uuid.UUID, req *models.UpdateItemRequest, encData *models.EncryptedData) (*models.Item, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -126,6 +134,9 @@ func (r *ItemRepository) Update(ctx context.Context, userID, itemID uuid.UUID, r
 	return &item, nil
 }
 
+// GetByID retrieves an item and its encrypted data by ID for a specific user.
+// Returns the item and encrypted data (nil if no encrypted data exists).
+// Returns ErrItemNotFound if the item doesn't exist or doesn't belong to the user.
 func (r *ItemRepository) GetByID(ctx context.Context, userID, itemID uuid.UUID) (*models.Item, *models.EncryptedData, error) {
 	itemQuery := `
 		SELECT id, user_id, type, title, metadata, created_at, updated_at
@@ -158,6 +169,8 @@ func (r *ItemRepository) GetByID(ctx context.Context, userID, itemID uuid.UUID) 
 	return &item, &data, nil
 }
 
+// DeleteByID removes an item and its associated encrypted data from the database.
+// Returns ErrItemNotFound if the item doesn't exist or doesn't belong to the user.
 func (r *ItemRepository) DeleteByID(ctx context.Context, userID uuid.UUID, itemID uuid.UUID) error {
 	query := `DELETE FROM items WHERE id = $1 AND user_id = $2`
 	t, err := r.db.Exec(ctx, query, itemID, userID)
@@ -170,6 +183,8 @@ func (r *ItemRepository) DeleteByID(ctx context.Context, userID uuid.UUID, itemI
 	return nil
 }
 
+// ListByUser retrieves all items belonging to a specific user.
+// Returns items sorted by update time in descending order.
 func (r *ItemRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]*models.Item, error) {
 	query := `
 		SELECT id, user_id, type, title, metadata, created_at, updated_at

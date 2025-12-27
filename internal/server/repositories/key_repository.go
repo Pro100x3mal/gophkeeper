@@ -10,14 +10,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// KeyRepository handles database operations for user encryption keys.
 type KeyRepository struct {
 	db *pgxpool.Pool
 }
 
+// NewKeyRepository creates a new key repository instance.
 func NewKeyRepository(db *pgxpool.Pool) *KeyRepository {
 	return &KeyRepository{db: db}
 }
 
+// Save stores or updates an encrypted user key in the database.
+// Uses upsert to create or update the key for the specified user.
 func (r *KeyRepository) Save(ctx context.Context, userID uuid.UUID, enc []byte) error {
 	query := `
 		INSERT INTO encryption_keys (user_id, key_encrypted) 
@@ -30,6 +34,9 @@ func (r *KeyRepository) Save(ctx context.Context, userID uuid.UUID, enc []byte) 
 	return nil
 }
 
+// Load retrieves an encrypted user key from the database.
+// Returns the encrypted key, true if found, and any error.
+// Returns nil, false, nil if the key doesn't exist.
 func (r *KeyRepository) Load(ctx context.Context, userID uuid.UUID) ([]byte, bool, error) {
 	query := `
 		SELECT key_encrypted 

@@ -1,3 +1,7 @@
+// Package app provides the main application setup and lifecycle management for the GophKeeper server.
+//
+// This package initializes all components including database connections, migrations,
+// HTTP routes, and graceful shutdown handling.
 package app
 
 import (
@@ -28,6 +32,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// App represents the main application with all its dependencies.
 type App struct {
 	config       *config.Config
 	logger       *zap.Logger
@@ -37,6 +42,16 @@ type App struct {
 	buildDate    string
 }
 
+// NewApp creates and initializes a new application instance.
+// It sets up the database, runs migrations, initializes services and handlers,
+// and configures the HTTP router.
+//
+// Parameters:
+//   - cfg: application configuration
+//   - buildVersion: version string for the build
+//   - buildDate: build timestamp
+//
+// Returns the initialized App instance or an error if initialization fails.
 func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 	log, err := logger.New(cfg.LogLevel)
 	if err != nil {
@@ -133,6 +148,11 @@ func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 	}, nil
 }
 
+// Run starts the HTTP server and handles graceful shutdown on system signals.
+// It listens for SIGINT, SIGTERM, and SIGQUIT signals and performs cleanup
+// when a signal is received or the server encounters an error.
+//
+// Returns an error if the server fails to start or encounters a fatal error.
 func (a *App) Run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer cancel()
@@ -180,6 +200,8 @@ func (a *App) Run() error {
 	return serverErr
 }
 
+// initDB initializes a PostgreSQL connection pool with configured parameters.
+// Sets up connection pooling with health checks and connection lifecycle limits.
 func initDB(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	poolConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
@@ -210,6 +232,8 @@ func initDB(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
+// runMigrations applies database migrations from embedded SQL files.
+// Uses golang-migrate to manage schema changes.
 func runMigrations(dsn string) error {
 	source, err := iofs.New(migrationsFS, "migrations")
 	if err != nil {
@@ -228,6 +252,8 @@ func runMigrations(dsn string) error {
 	return nil
 }
 
+// decodeMasterKey decodes and validates a base64-encoded master encryption key.
+// Ensures the key has the correct length for AES-256 encryption.
 func decodeMasterKey(masterKey string) ([]byte, error) {
 	decodedKey, err := base64.StdEncoding.DecodeString(masterKey)
 	if err != nil {

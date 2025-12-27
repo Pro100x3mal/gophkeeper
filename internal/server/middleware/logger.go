@@ -7,12 +7,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// wrappedResponseWriter wraps http.ResponseWriter to capture response status and size.
 type wrappedResponseWriter struct {
 	http.ResponseWriter
 	status int
 	size   int
 }
 
+// Write captures the response body size while writing.
 func (w *wrappedResponseWriter) Write(b []byte) (int, error) {
 	if w.status == 0 {
 		w.status = http.StatusOK
@@ -22,11 +24,13 @@ func (w *wrappedResponseWriter) Write(b []byte) (int, error) {
 	return size, err
 }
 
+// WriteHeader captures the response status code.
 func (w *wrappedResponseWriter) WriteHeader(statusCode int) {
 	w.status = statusCode
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
+// Logger returns a middleware that logs HTTP requests with method, path, status, size, and duration.
 func Logger(logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

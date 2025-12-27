@@ -10,13 +10,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// ErrInvalidItemType is returned when an invalid item type is provided.
 var ErrInvalidItemType = fmt.Errorf("invalid item type")
 
+// KeyRepoInterface defines the encryption key repository contract.
 type KeyRepoInterface interface {
 	Save(ctx context.Context, userID uuid.UUID, enc []byte) error
 	Load(ctx context.Context, userID uuid.UUID) ([]byte, bool, error)
 }
 
+// ItemRepoInterface defines the item repository contract.
 type ItemRepoInterface interface {
 	Create(ctx context.Context, item *models.Item, encData *models.EncryptedData) error
 	GetByID(ctx context.Context, userID, itemID uuid.UUID) (*models.Item, *models.EncryptedData, error)
@@ -30,12 +33,15 @@ type ItemRepoInterface interface {
 	) (*models.Item, error)
 }
 
+// ItemService handles encrypted item management with envelope encryption.
+// Uses a master key to encrypt per-user keys, which in turn encrypt individual data keys.
 type ItemService struct {
 	keyRepo   KeyRepoInterface
 	itemRepo  ItemRepoInterface
 	masterKey []byte
 }
 
+// NewItemService creates a new item service instance with the specified master key.
 func NewItemService(keyRepo KeyRepoInterface, itemRepo ItemRepoInterface, masterKey []byte) *ItemService {
 	return &ItemService{
 		keyRepo:   keyRepo,
@@ -44,6 +50,8 @@ func NewItemService(keyRepo KeyRepoInterface, itemRepo ItemRepoInterface, master
 	}
 }
 
+// CreateItem creates a new encrypted item with the provided data.
+// Uses envelope encryption: data is encrypted with a data key, which is encrypted with a user key.
 func (s *ItemService) CreateItem(ctx context.Context, req *models.CreateItemRequest, userID uuid.UUID) (*models.Item, error) {
 	if !isValidType(req.Type) {
 		return nil, ErrInvalidItemType
@@ -99,6 +107,8 @@ func (s *ItemService) CreateItem(ctx context.Context, req *models.CreateItemRequ
 	return item, nil
 }
 
+// UpdateItem updates an existing item's metadata and/or encrypted data.
+// Only provided fields are updated. Uses envelope encryption for new data.
 func (s *ItemService) UpdateItem(ctx context.Context, userID, itemID uuid.UUID, req *models.UpdateItemRequest) (*models.Item, error) {
 	if req.Type != nil && !isValidType(*req.Type) {
 		return nil, ErrInvalidItemType
@@ -146,6 +156,7 @@ func (s *ItemService) UpdateItem(ctx context.Context, userID, itemID uuid.UUID, 
 	return item, nil
 }
 
+// ListItems retrieves all items for a user without decrypting their data.
 func (s *ItemService) ListItems(ctx context.Context, userID uuid.UUID) ([]*models.Item, error) {
 	items, err := s.itemRepo.ListByUser(ctx, userID)
 	if err != nil {
@@ -154,6 +165,8 @@ func (s *ItemService) ListItems(ctx context.Context, userID uuid.UUID) ([]*model
 	return items, nil
 }
 
+// GetItem retrieves an item and decrypts its data using envelope encryption.
+// Returns the item metadata and decrypted data.
 func (s *ItemService) GetItem(ctx context.Context, userID, itemID uuid.UUID) (*models.Item, []byte, error) {
 	item, encData, err := s.itemRepo.GetByID(ctx, userID, itemID)
 	if err != nil {
@@ -178,6 +191,7 @@ func (s *ItemService) GetItem(ctx context.Context, userID, itemID uuid.UUID) (*m
 	return item, plainData, nil
 }
 
+// DeleteItem removes an item and its encrypted data from the database.
 func (s *ItemService) DeleteItem(ctx context.Context, userID, itemID uuid.UUID) error {
 	if err := s.itemRepo.DeleteByID(ctx, userID, itemID); err != nil {
 		return fmt.Errorf("failed to delete item: %w", err)
@@ -185,6 +199,8 @@ func (s *ItemService) DeleteItem(ctx context.Context, userID, itemID uuid.UUID) 
 	return nil
 }
 
+// loadOrCreateKey retrieves a user's encryption key or generates a new one if it doesn't exist.
+// The user key is encrypted with the master key before storage.
 func (s *ItemService) loadOrCreateKey(ctx context.Context, userID uuid.UUID) ([]byte, error) {
 	keyEncrypted, ok, err := s.keyRepo.Load(ctx, userID)
 	if err != nil {
@@ -210,6 +226,7 @@ func (s *ItemService) loadOrCreateKey(ctx context.Context, userID uuid.UUID) ([]
 	return key, nil
 }
 
+// isValidType checks if an item type is one of the supported types.
 func isValidType(t models.ItemType) bool {
 	switch t {
 	case models.ItemTypeCredential, models.ItemTypeText, models.ItemTypeBinary, models.ItemTypeCard:
@@ -219,6 +236,8 @@ func isValidType(t models.ItemType) bool {
 	}
 }
 
+// decodeBase64 decodes a base64-encoded string.
+// Returns nil if the input is empty.
 func decodeBase64(data string) ([]byte, error) {
 	if data == "" {
 		return nil, nil

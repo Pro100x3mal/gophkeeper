@@ -1,3 +1,7 @@
+// Package crypto provides cryptographic operations for encrypting and decrypting data.
+//
+// This package implements AES-256-GCM encryption for securing sensitive data.
+// It uses authenticated encryption to ensure both confidentiality and integrity.
 package crypto
 
 import (
@@ -8,8 +12,13 @@ import (
 	"io"
 )
 
+// KeySize defines the size of encryption keys in bytes (256 bits).
 const KeySize = 32
 
+// KeyGen generates a new random encryption key of KeySize bytes.
+// It uses crypto/rand for cryptographically secure random generation.
+//
+// Returns the generated key or an error if random generation fails.
 func KeyGen() ([]byte, error) {
 	key := make([]byte, KeySize)
 	_, err := rand.Read(key)
@@ -19,6 +28,14 @@ func KeyGen() ([]byte, error) {
 	return key, nil
 }
 
+// Encrypt encrypts plaintext using AES-256-GCM with the provided key.
+// The nonce is prepended to the ciphertext in the output.
+//
+// Parameters:
+//   - key: 32-byte AES encryption key
+//   - plaintext: data to encrypt
+//
+// Returns the encrypted data (nonce + ciphertext) or an error.
 func Encrypt(key, plaintext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -40,6 +57,14 @@ func Encrypt(key, plaintext []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
+// Decrypt decrypts ciphertext using AES-256-GCM with the provided key.
+// Expects the nonce to be prepended to the ciphertext (as produced by Encrypt).
+//
+// Parameters:
+//   - key: 32-byte AES encryption key (same as used for encryption)
+//   - ciphertext: encrypted data with prepended nonce
+//
+// Returns the decrypted plaintext or an error if decryption fails.
 func Decrypt(key, ciphertext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {

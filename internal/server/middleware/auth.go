@@ -1,3 +1,6 @@
+// Package middleware provides HTTP middleware functions for the GophKeeper server.
+//
+// This package implements authentication, logging, and request context management middleware.
 package middleware
 
 import (
@@ -14,6 +17,8 @@ type contextKey string
 
 const userIDContextKey contextKey = "user_id"
 
+// Auth returns a middleware that validates JWT tokens from the Authorization header.
+// Extracts the user ID from valid tokens and adds it to the request context.
 func Auth(jwtGen *jwt.Generator, logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +49,8 @@ func Auth(jwtGen *jwt.Generator, logger *zap.Logger) func(http.Handler) http.Han
 	}
 }
 
+// GetUserIDFromContext extracts the user ID from the request context.
+// Returns the user ID and true if found, or uuid.Nil and false otherwise.
 func GetUserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	val := ctx.Value(userIDContextKey)
 	if val == nil {
