@@ -48,7 +48,7 @@ func Load() (*Config, error) {
 	defaultCache := filepath.Join(execDir, "cache.json")
 	defaultToken := filepath.Join(execDir, "token")
 
-	flag.StringVar(&cfg.ServerAddr, "a", getEnv("SERVER_ADDR", "https://localhost:8080"), "Server address")
+	flag.StringVar(&cfg.ServerAddr, "a", getEnv("SERVER_ADDR", "http://localhost:8080"), "Server address")
 	flag.StringVar(&cfg.LogLevel, "l", getEnv("LOG_LEVEL", "info"), "Log level (debug, info, warn, error)")
 	flag.BoolVar(&cfg.TLSInsecure, "v", getBoolEnv("TLS_INSECURE", false), "Disable TLS certificate verification")
 	flag.StringVar(&cfg.CachePath, "c", getEnv("CACHE_PATH", defaultCache), "Path to the local cache file")
