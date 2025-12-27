@@ -162,18 +162,27 @@ func (a *App) cmdLogin() *cobra.Command {
 }
 
 func (a *App) cmdCreate() *cobra.Command {
-	var typ, title, meta, filePath string
+	var typ, title, meta, filePath, data string
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create new item",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var dataBase64 string
-			if filePath != "" {
+
+			// Check that only one of --file or --data is provided
+			if filePath != "" && data != "" {
+				return errors.New("cannot use both --file and --data flags")
+			}
+
+			switch {
+			case filePath != "":
 				rawData, err := os.ReadFile(filePath)
 				if err != nil {
 					return fmt.Errorf("failed to read file: %w", err)
 				}
 				dataBase64 = base64.StdEncoding.EncodeToString(rawData)
+			case data != "":
+				dataBase64 = base64.StdEncoding.EncodeToString([]byte(data))
 			}
 
 			if typ == "" {
@@ -205,13 +214,14 @@ func (a *App) cmdCreate() *cobra.Command {
 	cmd.Flags().StringVar(&title, "title", "", "Item title")
 	cmd.Flags().StringVar(&meta, "meta", "", "Item metadata (plain text)")
 	cmd.Flags().StringVar(&filePath, "file", "", "Path to file with item data")
+	cmd.Flags().StringVar(&data, "data", "", "Raw text data (alternative to --file)")
 	_ = cmd.MarkFlagRequired("type")
 	_ = cmd.MarkFlagRequired("title")
 	return cmd
 }
 
 func (a *App) cmdUpdate() *cobra.Command {
-	var rawID, typ, title, meta, filePath string
+	var rawID, typ, title, meta, filePath, data string
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update existing item",
@@ -219,6 +229,11 @@ func (a *App) cmdUpdate() *cobra.Command {
 			id, err := parseID(rawID)
 			if err != nil {
 				return fmt.Errorf("failed to parse item ID: %w", err)
+			}
+
+			// Check that only one of --file or --data is provided
+			if filePath != "" && data != "" {
+				return errors.New("cannot use both --file and --data flags")
 			}
 
 			req := &models.UpdateItemRequest{}
@@ -241,12 +256,16 @@ func (a *App) cmdUpdate() *cobra.Command {
 				req.Metadata = &meta
 			}
 
-			if filePath != "" {
+			switch {
+			case filePath != "":
 				rawData, err := os.ReadFile(filePath)
 				if err != nil {
 					return fmt.Errorf("failed to read file: %w", err)
 				}
 				dataBase64 := base64.StdEncoding.EncodeToString(rawData)
+				req.DataBase64 = &dataBase64
+			case data != "":
+				dataBase64 := base64.StdEncoding.EncodeToString([]byte(data))
 				req.DataBase64 = &dataBase64
 			}
 
@@ -269,6 +288,7 @@ func (a *App) cmdUpdate() *cobra.Command {
 	cmd.Flags().StringVar(&title, "title", "", "Item title")
 	cmd.Flags().StringVar(&meta, "meta", "", "Item metadata (plain text)")
 	cmd.Flags().StringVar(&filePath, "file", "", "Path to file with item data")
+	cmd.Flags().StringVar(&data, "data", "", "Raw text data (alternative to --file)")
 	_ = cmd.MarkFlagRequired("id")
 	return cmd
 }
