@@ -175,7 +175,7 @@ func (r *ItemRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]*m
 		SELECT id, user_id, type, title, metadata, created_at, updated_at
 		FROM items
 		WHERE user_id = $1
-		ORDER BY created_at DESC
+		ORDER BY updated_at DESC
 	`
 	rows, err := r.db.Query(ctx, query, userID)
 	if err != nil {

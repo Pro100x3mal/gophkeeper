@@ -23,6 +23,18 @@ func NewCache(path string) *Cache {
 	}
 }
 
+func (c *Cache) GetToken() string {
+	return c.Token
+}
+
+func (c *Cache) SetToken(token string) {
+	c.Token = token
+}
+
+func (c *Cache) ItemsList() map[string]models.Item {
+	return c.Items
+}
+
 func (c *Cache) Load() error {
 	if c.Path == "" {
 		return errors.New("cache path cannot be empty")
