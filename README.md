@@ -290,8 +290,11 @@ gophkeeper create --type binary --title "SSH Key" --file ~/.ssh/id_rsa
 # Список всех элементов
 gophkeeper list
 
-# Получить конкретный элемент по ID
+# Получить конкретный элемент по ID (вывод в stdout)
 gophkeeper get --id <uuid>
+
+# Получить элемент и сохранить в файл
+gophkeeper get --id <uuid> > secret.json
 
 # Обновить элемент (опционально: --type, --title, --meta, --file, --data)
 gophkeeper update --id <uuid> --title "New Title" --file new-data.json
@@ -299,6 +302,32 @@ gophkeeper update --id <uuid> --data '{"username":"new","password":"secret"}'
 
 # Удалить элемент
 gophkeeper delete --id <uuid>
+```
+
+**Примеры получения данных:**
+```bash
+# Вывод данных в stdout (по умолчанию)
+$ gophkeeper get --id 123e4567-e89b-12d3-a456-426614174000
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "type": "credentials",
+  "title": "GitHub",
+  "data": "{\"username\":\"alice\",\"password\":\"secret123\"}",
+  "metadata": "",
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z"
+}
+
+# Сохранить данные в файл
+$ gophkeeper get --id 123e4567-e89b-12d3-a456-426614174000 > github-creds.json
+$ cat github-creds.json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "type": "credentials",
+  "title": "GitHub",
+  "data": "{\"username\":\"alice\",\"password\":\"secret123\"}",
+  ...
+}
 ```
 
 **Прочее:**
