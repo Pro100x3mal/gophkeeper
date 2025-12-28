@@ -10,7 +10,6 @@ import (
 	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
 	"github.com/Pro100x3mal/gophkeeper/models"
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -85,7 +84,7 @@ func (h *ItemHandler) UpdateItem(w http.ResponseWriter, r *http.Request, userID 
 		return
 	}
 
-	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
+	itemID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
@@ -136,7 +135,7 @@ func (h *ItemHandler) ListItems(w http.ResponseWriter, r *http.Request, userID u
 // GetItem handles requests to retrieve a specific item with its decrypted data.
 // Returns both item metadata and base64-encoded decrypted data.
 func (h *ItemHandler) GetItem(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
-	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
+	itemID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
@@ -163,7 +162,7 @@ func (h *ItemHandler) GetItem(w http.ResponseWriter, r *http.Request, userID uui
 // DeleteItem handles requests to delete a specific item.
 // Permanently removes the item and its encrypted data from the database.
 func (h *ItemHandler) DeleteItem(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
-	itemID, err := uuid.Parse(chi.URLParam(r, "id"))
+	itemID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return

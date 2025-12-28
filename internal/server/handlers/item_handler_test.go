@@ -12,7 +12,6 @@ import (
 	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
 	"github.com/Pro100x3mal/gophkeeper/models"
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -205,14 +204,14 @@ func TestItemHandler_GetItem_Success(t *testing.T) {
 
 	mockService.On("GetItem", mock.Anything, userID, itemID).Return(item, data, nil)
 
-	r := chi.NewRouter()
-	r.Get("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		handler.GetItem(w, req, userID)
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/items/"+itemID.String(), nil)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockService.AssertExpectations(t)
@@ -229,14 +228,14 @@ func TestItemHandler_GetItem_NotFound(t *testing.T) {
 	mockService.On("GetItem", mock.Anything, userID, itemID).
 		Return(nil, nil, repositories.ErrItemNotFound)
 
-	r := chi.NewRouter()
-	r.Get("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		handler.GetItem(w, req, userID)
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/items/"+itemID.String(), nil)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 	mockService.AssertExpectations(t)
@@ -258,15 +257,15 @@ func TestItemHandler_UpdateItem_Success(t *testing.T) {
 	reqBody := models.UpdateItemRequest{Title: &newTitle}
 	body, _ := json.Marshal(reqBody)
 
-	r := chi.NewRouter()
-	r.Put("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("PUT /items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		handler.UpdateItem(w, req, userID)
 	})
 
 	req := httptest.NewRequest(http.MethodPut, "/items/"+itemID.String(), bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockService.AssertExpectations(t)
@@ -283,15 +282,15 @@ func TestItemHandler_UpdateItem_NoFields(t *testing.T) {
 	reqBody := models.UpdateItemRequest{}
 	body, _ := json.Marshal(reqBody)
 
-	r := chi.NewRouter()
-	r.Put("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("PUT /items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		handler.UpdateItem(w, req, userID)
 	})
 
 	req := httptest.NewRequest(http.MethodPut, "/items/"+itemID.String(), bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -306,14 +305,14 @@ func TestItemHandler_DeleteItem_Success(t *testing.T) {
 
 	mockService.On("DeleteItem", mock.Anything, userID, itemID).Return(nil)
 
-	r := chi.NewRouter()
-	r.Delete("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("DELETE /items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		handler.DeleteItem(w, req, userID)
 	})
 
 	req := httptest.NewRequest(http.MethodDelete, "/items/"+itemID.String(), nil)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
 	mockService.AssertExpectations(t)
@@ -330,14 +329,14 @@ func TestItemHandler_DeleteItem_NotFound(t *testing.T) {
 	mockService.On("DeleteItem", mock.Anything, userID, itemID).
 		Return(repositories.ErrItemNotFound)
 
-	r := chi.NewRouter()
-	r.Delete("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("DELETE /items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		handler.DeleteItem(w, req, userID)
 	})
 
 	req := httptest.NewRequest(http.MethodDelete, "/items/"+itemID.String(), nil)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 	mockService.AssertExpectations(t)
@@ -392,14 +391,14 @@ func TestItemHandler_GetItem_InvalidUUID(t *testing.T) {
 
 	userID := uuid.New()
 
-	r := chi.NewRouter()
-	r.Get("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		handler.GetItem(w, req, userID)
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/items/invalid-uuid", nil)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -414,15 +413,15 @@ func TestItemHandler_UpdateItem_InvalidUUID(t *testing.T) {
 	reqBody := models.UpdateItemRequest{Title: &newTitle}
 	body, _ := json.Marshal(reqBody)
 
-	r := chi.NewRouter()
-	r.Put("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("PUT /items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		handler.UpdateItem(w, req, userID)
 	})
 
 	req := httptest.NewRequest(http.MethodPut, "/items/invalid-uuid", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -434,14 +433,14 @@ func TestItemHandler_DeleteItem_InvalidUUID(t *testing.T) {
 
 	userID := uuid.New()
 
-	r := chi.NewRouter()
-	r.Delete("/items/{id}", func(w http.ResponseWriter, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("DELETE /items/{id}", func(w http.ResponseWriter, req *http.Request) {
 		handler.DeleteItem(w, req, userID)
 	})
 
 	req := httptest.NewRequest(http.MethodDelete, "/items/invalid-uuid", nil)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	mux.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }

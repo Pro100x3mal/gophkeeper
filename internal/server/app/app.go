@@ -24,7 +24,6 @@ import (
 	"github.com/Pro100x3mal/gophkeeper/pkg/crypto"
 	"github.com/Pro100x3mal/gophkeeper/pkg/jwt"
 	"github.com/Pro100x3mal/gophkeeper/pkg/logger"
-	"github.com/go-chi/chi/v5"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
@@ -105,31 +104,28 @@ func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 	authHandler := handlers.NewAuthHandler(authService, appLogger)
 	itemHandler := handlers.NewItemHandler(itemService, appLogger)
 
-	r := chi.NewRouter()
-	r.Use(middleware.Logger(appLogger))
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/health", infoHandler.HealthCheck)
-		r.Get("/version", infoHandler.Version)
+	mux := http.NewServeMux()
 
-		r.Post("/register", authHandler.Register)
-		r.Post("/login", authHandler.Login)
+	// Public endpoints
+	mux.HandleFunc("GET /api/v1/health", infoHandler.HealthCheck)
+	mux.HandleFunc("GET /api/v1/version", infoHandler.Version)
+	mux.HandleFunc("POST /api/v1/register", authHandler.Register)
+	mux.HandleFunc("POST /api/v1/login", authHandler.Login)
 
-		r.Group(func(r chi.Router) {
-			r.Use(middleware.Auth(jwtGen, appLogger))
+	// Protected endpoints
+	authMiddleware := middleware.Auth(jwtGen, appLogger)
+	mux.Handle("POST /api/v1/items/", authMiddleware(middleware.RequireUser(itemHandler.CreateItem)))
+	mux.Handle("GET /api/v1/items/", authMiddleware(middleware.RequireUser(itemHandler.ListItems)))
+	mux.Handle("GET /api/v1/items/{id}", authMiddleware(middleware.RequireUser(itemHandler.GetItem)))
+	mux.Handle("PUT /api/v1/items/{id}", authMiddleware(middleware.RequireUser(itemHandler.UpdateItem)))
+	mux.Handle("DELETE /api/v1/items/{id}", authMiddleware(middleware.RequireUser(itemHandler.DeleteItem)))
 
-			r.Route("/items", func(r chi.Router) {
-				r.Post("/", middleware.RequireUser(itemHandler.CreateItem))
-				r.Get("/", middleware.RequireUser(itemHandler.ListItems))
-				r.Get("/{id}", middleware.RequireUser(itemHandler.GetItem))
-				r.Put("/{id}", middleware.RequireUser(itemHandler.UpdateItem))
-				r.Delete("/{id}", middleware.RequireUser(itemHandler.DeleteItem))
-			})
-		})
-	})
+	// Wrap with Logger middleware
+	handler := middleware.Logger(appLogger)(mux)
 
 	server := &http.Server{
 		Addr:         cfg.ServerAddr,
-		Handler:      r,
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
