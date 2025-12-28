@@ -21,6 +21,7 @@ import (
 	"github.com/Pro100x3mal/gophkeeper/internal/server/middleware"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
+	"github.com/Pro100x3mal/gophkeeper/internal/server/validators"
 	"github.com/Pro100x3mal/gophkeeper/pkg/crypto"
 	"github.com/Pro100x3mal/gophkeeper/pkg/jwt"
 	"github.com/Pro100x3mal/gophkeeper/pkg/logger"
@@ -100,9 +101,12 @@ func NewApp(cfg *config.Config, buildVersion, buildDate string) (*App, error) {
 	authService := services.NewAuthService(userRepo, jwtGen)
 	itemService := services.NewItemService(keyRepo, itemRepo, masterKey)
 
+	authValidator := validators.NewAuthValidator()
+	itemValidator := validators.NewItemValidator()
+
 	infoHandler := handlers.NewInfoHandler(buildVersion, buildDate)
-	authHandler := handlers.NewAuthHandler(authService, appLogger)
-	itemHandler := handlers.NewItemHandler(itemService, appLogger)
+	authHandler := handlers.NewAuthHandler(authService, authValidator, appLogger)
+	itemHandler := handlers.NewItemHandler(itemService, itemValidator, appLogger)
 
 	mux := http.NewServeMux()
 

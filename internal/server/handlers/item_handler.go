@@ -23,17 +23,26 @@ type ItemService interface {
 	DeleteItem(ctx context.Context, userID, itemID uuid.UUID) error
 }
 
+// ItemValidator defines the contract for validating item management requests.
+type ItemValidator interface {
+	ValidateCreateItemRequest(req *models.CreateItemRequest) error
+	ValidateUpdateItemRequest(req *models.UpdateItemRequest) error
+	ValidateUUID(id string) (uuid.UUID, error)
+}
+
 // ItemHandler handles HTTP requests for item management operations.
 type ItemHandler struct {
-	itemSvc ItemService
-	logger  *zap.Logger
+	itemSvc   ItemService
+	validator ItemValidator
+	logger    *zap.Logger
 }
 
 // NewItemHandler creates a new item handler instance.
-func NewItemHandler(itemSvc ItemService, logger *zap.Logger) *ItemHandler {
+func NewItemHandler(itemSvc ItemService, validator ItemValidator, logger *zap.Logger) *ItemHandler {
 	return &ItemHandler{
-		itemSvc: itemSvc,
-		logger:  logger.Named("item_handler"),
+		itemSvc:   itemSvc,
+		validator: validator,
+		logger:    logger.Named("item_handler"),
 	}
 }
 
@@ -57,8 +66,8 @@ func (h *ItemHandler) CreateItem(w http.ResponseWriter, r *http.Request, userID 
 		return
 	}
 
-	if req.Type == "" || req.Title == "" {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+	if err := h.validator.ValidateCreateItemRequest(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -84,20 +93,20 @@ func (h *ItemHandler) UpdateItem(w http.ResponseWriter, r *http.Request, userID 
 		return
 	}
 
-	itemID, err := uuid.Parse(r.PathValue("id"))
+	itemID, err := h.validator.ValidateUUID(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	var req models.UpdateItemRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err = json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
-	if req.Type == nil && req.Title == nil && req.Metadata == nil && req.DataBase64 == nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+	if err = h.validator.ValidateUpdateItemRequest(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -135,9 +144,9 @@ func (h *ItemHandler) ListItems(w http.ResponseWriter, r *http.Request, userID u
 // GetItem handles requests to retrieve a specific item with its decrypted data.
 // Returns both item metadata and base64-encoded decrypted data.
 func (h *ItemHandler) GetItem(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
-	itemID, err := uuid.Parse(r.PathValue("id"))
+	itemID, err := h.validator.ValidateUUID(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -162,9 +171,9 @@ func (h *ItemHandler) GetItem(w http.ResponseWriter, r *http.Request, userID uui
 // DeleteItem handles requests to delete a specific item.
 // Permanently removes the item and its encrypted data from the database.
 func (h *ItemHandler) DeleteItem(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
-	itemID, err := uuid.Parse(r.PathValue("id"))
+	itemID, err := h.validator.ValidateUUID(r.PathValue("id"))
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

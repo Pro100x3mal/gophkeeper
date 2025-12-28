@@ -19,17 +19,24 @@ type AuthServiceInterface interface {
 	Login(ctx context.Context, username, password string) (*models.User, string, error)
 }
 
+// AuthValidator defines the contract for validating authentication credentials.
+type AuthValidator interface {
+	ValidateCredentials(login, password string) error
+}
+
 // AuthHandler handles HTTP requests for user authentication.
 type AuthHandler struct {
-	authSvc AuthServiceInterface
-	logger  *zap.Logger
+	authSvc   AuthServiceInterface
+	validator AuthValidator
+	logger    *zap.Logger
 }
 
 // NewAuthHandler creates a new authentication handler instance.
-func NewAuthHandler(authSvc AuthServiceInterface, logger *zap.Logger) *AuthHandler {
+func NewAuthHandler(authSvc AuthServiceInterface, validator AuthValidator, logger *zap.Logger) *AuthHandler {
 	return &AuthHandler{
-		authSvc: authSvc,
-		logger:  logger.Named("auth_handler"),
+		authSvc:   authSvc,
+		validator: validator,
+		logger:    logger.Named("auth_handler"),
 	}
 }
 
@@ -65,8 +72,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Username == "" || req.Password == "" {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+	if err := h.validator.ValidateCredentials(req.Username, req.Password); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -101,8 +108,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Username == "" || req.Password == "" {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+	if err := h.validator.ValidateCredentials(req.Username, req.Password); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
