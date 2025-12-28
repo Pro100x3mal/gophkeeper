@@ -3,13 +3,16 @@ package app
 import (
 	"encoding/base64"
 	"errors"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/Pro100x3mal/gophkeeper/internal/client/config"
 	"github.com/Pro100x3mal/gophkeeper/models"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -113,6 +116,7 @@ func createTestApp() *App {
 	}
 }
 
+// Test App.Close method
 func TestApp_Close(t *testing.T) {
 	app := createTestApp()
 	mockCache := new(MockCacheRepository)
@@ -138,6 +142,7 @@ func TestApp_Close_Error(t *testing.T) {
 	mockCache.AssertExpectations(t)
 }
 
+// Test parseID helper function
 func TestParseID_Valid(t *testing.T) {
 	validUUID := uuid.New().String()
 	id, err := parseID(validUUID)
@@ -155,220 +160,360 @@ func TestParseID_Empty(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// Test create command with --data flag
-func TestCreateItem_WithDataFlag(t *testing.T) {
-	testData := "test secret data"
-	expectedBase64 := base64.StdEncoding.EncodeToString([]byte(testData))
+// createTestAppWithMocks creates a test app with provided mocks
+func createTestAppWithMocks(mockAPI *MockApiService, mockCache *MockCacheRepository) *App {
+	logger, _ := zap.NewDevelopment()
+	return &App{
+		config: &config.Config{
+			ServerAddr:   "http://localhost:8080",
+			LogLevel:     "info",
+			TLSInsecure:  false,
+			BuildVersion: "test",
+			BuildDate:    "test",
+		},
+		logger: logger,
+		api:    mockAPI,
+		cache:  mockCache,
+	}
+}
 
+// Command tests
+
+func TestCmdRegister(t *testing.T) {
 	mockAPI := new(MockApiService)
 	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
 
-	app := createTestApp()
-	app.api = mockAPI
-	app.cache = mockCache
+	token := "test-token-123"
+	mockAPI.On("Register", "alice", "secret123").Return(token, nil)
+	mockCache.On("SetToken", token).Return()
+	mockAPI.On("SetToken", token).Return()
 
+	cmd := app.cmdRegister()
+	cmd.SetArgs([]string{"--username", "alice", "--password", "secret123"})
+
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	mockAPI.AssertExpectations(t)
+	mockCache.AssertExpectations(t)
+}
+
+func TestCmdRegister_Error(t *testing.T) {
+	mockAPI := new(MockApiService)
+	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
+
+	mockAPI.On("Register", "alice", "secret").Return("", assert.AnError)
+
+	cmd := app.cmdRegister()
+	cmd.SetArgs([]string{"--username", "alice", "--password", "secret"})
+
+	err := cmd.Execute()
+	assert.Error(t, err)
+	mockAPI.AssertExpectations(t)
+}
+
+func TestCmdLogin(t *testing.T) {
+	mockAPI := new(MockApiService)
+	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
+
+	token := "login-token-456"
+	mockAPI.On("Login", "alice", "secret123").Return(token, nil)
+	mockCache.On("SetToken", token).Return()
+	mockAPI.On("SetToken", token).Return()
+
+	cmd := app.cmdLogin()
+	cmd.SetArgs([]string{"--username", "alice", "--password", "secret123"})
+
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	mockAPI.AssertExpectations(t)
+	mockCache.AssertExpectations(t)
+}
+
+func TestCmdCreate_WithData(t *testing.T) {
+	mockAPI := new(MockApiService)
+	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
+
+	testData := "test secret data"
+	expectedBase64 := base64.StdEncoding.EncodeToString([]byte(testData))
 	itemID := uuid.New()
-	expectedItem := &models.Item{
-		ID:    itemID,
-		Type:  models.ItemTypeText,
-		Title: "Test Item",
-	}
 
 	mockAPI.On("CreateItem", mock.MatchedBy(func(req *models.CreateItemRequest) bool {
 		return req.Type == models.ItemTypeText &&
-			req.Title == "Test Item" &&
+			req.Title == "Test Note" &&
 			req.DataBase64 == expectedBase64
-	})).Return(expectedItem, nil)
+	})).Return(&models.Item{
+		ID:    itemID,
+		Type:  models.ItemTypeText,
+		Title: "Test Note",
+	}, nil)
 
 	mockCache.On("ItemsList").Return(make(map[string]models.Item))
 
-	// Simulate command execution
-	req := &models.CreateItemRequest{
-		Type:       models.ItemTypeText,
-		Title:      "Test Item",
-		DataBase64: expectedBase64,
-	}
+	cmd := app.cmdCreate()
+	cmd.SetArgs([]string{
+		"--type", "text",
+		"--title", "Test Note",
+		"--data", testData,
+	})
 
-	item, err := app.api.CreateItem(req)
+	err := cmd.Execute()
 	assert.NoError(t, err)
-	assert.NotNil(t, item)
-	assert.Equal(t, expectedItem.ID, item.ID)
 	mockAPI.AssertExpectations(t)
 }
 
-// Test create command with --file flag
-func TestCreateItem_WithFileFlag(t *testing.T) {
-	// This would require file operations, tested in integration tests
-	// Here we just verify the base64 encoding logic
-	fileData := []byte("file content")
-	expectedBase64 := base64.StdEncoding.EncodeToString(fileData)
-
-	assert.Equal(t, "ZmlsZSBjb250ZW50", expectedBase64)
-}
-
-// Test create command with both --data and --file flags (should fail)
-func TestCreateItem_WithBothFlags(t *testing.T) {
-	// This validation happens in the command handler
-	// We verify the logic exists
-	filePath := "test.txt"
-	data := "some data"
-
-	// Both flags are set - should be validated
-	assert.NotEmpty(t, filePath)
-	assert.NotEmpty(t, data)
-}
-
-// Test update command with --data flag
-func TestUpdateItem_WithDataFlag(t *testing.T) {
-	testData := "updated secret data"
-	expectedBase64 := base64.StdEncoding.EncodeToString([]byte(testData))
-
+func TestCmdCreate_WithFile(t *testing.T) {
 	mockAPI := new(MockApiService)
 	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
 
-	app := createTestApp()
-	app.api = mockAPI
-	app.cache = mockCache
+	tmpFile, err := os.CreateTemp("", "test-*.txt")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	testData := []byte("file content")
+	_, err = tmpFile.Write(testData)
+	require.NoError(t, err)
+	tmpFile.Close()
+
+	expectedBase64 := base64.StdEncoding.EncodeToString(testData)
+	itemID := uuid.New()
+
+	mockAPI.On("CreateItem", mock.MatchedBy(func(req *models.CreateItemRequest) bool {
+		return req.Type == models.ItemTypeBinary &&
+			req.Title == "Test File" &&
+			req.DataBase64 == expectedBase64
+	})).Return(&models.Item{
+		ID:    itemID,
+		Type:  models.ItemTypeBinary,
+		Title: "Test File",
+	}, nil)
+
+	mockCache.On("ItemsList").Return(make(map[string]models.Item))
+
+	cmd := app.cmdCreate()
+	cmd.SetArgs([]string{
+		"--type", "binary",
+		"--title", "Test File",
+		"--file", tmpFile.Name(),
+	})
+
+	err = cmd.Execute()
+	assert.NoError(t, err)
+	mockAPI.AssertExpectations(t)
+}
+
+func TestCmdCreate_WithBothFileAndData(t *testing.T) {
+	mockAPI := new(MockApiService)
+	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
+
+	cmd := app.cmdCreate()
+	cmd.SetArgs([]string{
+		"--type", "text",
+		"--title", "Test",
+		"--file", "/tmp/test.txt",
+		"--data", "some data",
+	})
+
+	err := cmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot use both")
+}
+
+func TestCmdCreate_WithMeta(t *testing.T) {
+	mockAPI := new(MockApiService)
+	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
 
 	itemID := uuid.New()
-	expectedItem := &models.Item{
+	metadata := "important note"
+
+	mockAPI.On("CreateItem", mock.MatchedBy(func(req *models.CreateItemRequest) bool {
+		return req.Type == models.ItemTypeText &&
+			req.Title == "Note" &&
+			req.Metadata == metadata
+	})).Return(&models.Item{
 		ID:    itemID,
 		Type:  models.ItemTypeText,
-		Title: "Updated Item",
-	}
+		Title: "Note",
+	}, nil)
+
+	mockCache.On("ItemsList").Return(make(map[string]models.Item))
+
+	cmd := app.cmdCreate()
+	cmd.SetArgs([]string{
+		"--type", "text",
+		"--title", "Note",
+		"--meta", metadata,
+	})
+
+	err := cmd.Execute()
+	assert.NoError(t, err)
+	mockAPI.AssertExpectations(t)
+}
+
+func TestCmdUpdate_WithData(t *testing.T) {
+	mockAPI := new(MockApiService)
+	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
+
+	itemID := uuid.New()
+	testData := "updated data"
+	expectedBase64 := base64.StdEncoding.EncodeToString([]byte(testData))
 
 	mockAPI.On("UpdateItem", itemID, mock.MatchedBy(func(req *models.UpdateItemRequest) bool {
 		return req.DataBase64 != nil && *req.DataBase64 == expectedBase64
-	})).Return(expectedItem, nil)
+	})).Return(&models.Item{
+		ID:    itemID,
+		Type:  models.ItemTypeText,
+		Title: "Updated",
+	}, nil)
 
 	mockCache.On("ItemsList").Return(make(map[string]models.Item))
 
-	// Simulate update
-	req := &models.UpdateItemRequest{
-		DataBase64: &expectedBase64,
-	}
+	cmd := app.cmdUpdate()
+	cmd.SetArgs([]string{
+		"--id", itemID.String(),
+		"--data", testData,
+	})
 
-	item, err := app.api.UpdateItem(itemID, req)
+	err := cmd.Execute()
 	assert.NoError(t, err)
-	assert.NotNil(t, item)
-	assert.Equal(t, expectedItem.ID, item.ID)
 	mockAPI.AssertExpectations(t)
 }
 
-// Test register
-func TestRegister_Success(t *testing.T) {
+func TestCmdUpdate_WithFile(t *testing.T) {
 	mockAPI := new(MockApiService)
 	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
 
-	app := createTestApp()
-	app.api = mockAPI
-	app.cache = mockCache
+	itemID := uuid.New()
 
-	token := "test-token-123"
-	mockAPI.On("Register", "testuser", "testpass").Return(token, nil)
-	mockCache.On("SetToken", token).Return()
-	mockAPI.On("SetToken", token).Return()
+	tmpFile, err := os.CreateTemp("", "update-*.txt")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
 
-	resultToken, err := app.api.Register("testuser", "testpass")
+	testData := []byte("updated file content")
+	_, err = tmpFile.Write(testData)
+	require.NoError(t, err)
+	tmpFile.Close()
+
+	expectedBase64 := base64.StdEncoding.EncodeToString(testData)
+
+	mockAPI.On("UpdateItem", itemID, mock.MatchedBy(func(req *models.UpdateItemRequest) bool {
+		return req.DataBase64 != nil && *req.DataBase64 == expectedBase64
+	})).Return(&models.Item{
+		ID:    itemID,
+		Type:  models.ItemTypeBinary,
+		Title: "Updated",
+	}, nil)
+
+	mockCache.On("ItemsList").Return(make(map[string]models.Item))
+
+	cmd := app.cmdUpdate()
+	cmd.SetArgs([]string{
+		"--id", itemID.String(),
+		"--file", tmpFile.Name(),
+	})
+
+	err = cmd.Execute()
 	assert.NoError(t, err)
-	assert.Equal(t, token, resultToken)
 	mockAPI.AssertExpectations(t)
 }
 
-func TestRegister_Error(t *testing.T) {
-	mockAPI := new(MockApiService)
-
-	app := createTestApp()
-	app.api = mockAPI
-
-	mockAPI.On("Register", "testuser", "testpass").Return("", errors.New("user already exists"))
-
-	_, err := app.api.Register("testuser", "testpass")
-	assert.Error(t, err)
-	assert.Equal(t, "user already exists", err.Error())
-	mockAPI.AssertExpectations(t)
-}
-
-// Test login
-func TestLogin_Success(t *testing.T) {
+func TestCmdUpdate_WithBothFileAndData(t *testing.T) {
 	mockAPI := new(MockApiService)
 	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
 
-	app := createTestApp()
-	app.api = mockAPI
-	app.cache = mockCache
+	itemID := uuid.New()
 
-	token := "login-token-456"
-	mockAPI.On("Login", "testuser", "testpass").Return(token, nil)
-	mockCache.On("SetToken", token).Return()
-	mockAPI.On("SetToken", token).Return()
+	cmd := app.cmdUpdate()
+	cmd.SetArgs([]string{
+		"--id", itemID.String(),
+		"--file", "/tmp/test.txt",
+		"--data", "some data",
+	})
 
-	resultToken, err := app.api.Login("testuser", "testpass")
-	assert.NoError(t, err)
-	assert.Equal(t, token, resultToken)
-	mockAPI.AssertExpectations(t)
-}
-
-func TestLogin_Error(t *testing.T) {
-	mockAPI := new(MockApiService)
-
-	app := createTestApp()
-	app.api = mockAPI
-
-	mockAPI.On("Login", "testuser", "wrongpass").Return("", errors.New("invalid credentials"))
-
-	_, err := app.api.Login("testuser", "wrongpass")
+	err := cmd.Execute()
 	assert.Error(t, err)
-	assert.Equal(t, "invalid credentials", err.Error())
+	assert.Contains(t, err.Error(), "cannot use both")
+}
+
+func TestCmdGet(t *testing.T) {
+	mockAPI := new(MockApiService)
+	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
+
+	itemID := uuid.New()
+	dataBase64 := base64.StdEncoding.EncodeToString([]byte("secret data"))
+
+	mockAPI.On("GetItem", itemID).Return(&models.Item{
+		ID:    itemID,
+		Type:  models.ItemTypeText,
+		Title: "Test Item",
+	}, &dataBase64, nil)
+
+	mockCache.On("ItemsList").Return(make(map[string]models.Item))
+
+	cmd := app.cmdGet()
+	cmd.SetArgs([]string{"--id", itemID.String()})
+
+	err := cmd.Execute()
+	assert.NoError(t, err)
 	mockAPI.AssertExpectations(t)
 }
 
-// Test list items
-func TestListItems_Success(t *testing.T) {
+func TestCmdList(t *testing.T) {
 	mockAPI := new(MockApiService)
+	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
 
-	app := createTestApp()
-	app.api = mockAPI
-
+	now := time.Now()
 	items := []*models.Item{
-		{ID: uuid.New(), Type: models.ItemTypeText, Title: "Item 1"},
-		{ID: uuid.New(), Type: models.ItemTypeCredential, Title: "Item 2"},
+		{ID: uuid.New(), Type: models.ItemTypeText, Title: "Item 1", UpdatedAt: now},
+		{ID: uuid.New(), Type: models.ItemTypeCredential, Title: "Item 2", UpdatedAt: now.Add(-time.Hour)},
 	}
 
 	mockAPI.On("ListItems").Return(items, nil)
+	mockCache.On("ItemsList").Return(make(map[string]models.Item))
 
-	result, err := app.api.ListItems()
+	cmd := app.cmdList()
+
+	err := cmd.Execute()
 	assert.NoError(t, err)
-	assert.Len(t, result, 2)
 	mockAPI.AssertExpectations(t)
 }
 
-// Test delete item
-func TestDeleteItem_Success(t *testing.T) {
+func TestCmdDelete(t *testing.T) {
 	mockAPI := new(MockApiService)
-
-	app := createTestApp()
-	app.api = mockAPI
+	mockCache := new(MockCacheRepository)
+	app := createTestAppWithMocks(mockAPI, mockCache)
 
 	itemID := uuid.New()
+
 	mockAPI.On("DeleteItem", itemID).Return(nil)
+	mockCache.On("ItemsList").Return(make(map[string]models.Item))
 
-	err := app.api.DeleteItem(itemID)
+	cmd := app.cmdDelete()
+	cmd.SetArgs([]string{"--id", itemID.String()})
+
+	err := cmd.Execute()
 	assert.NoError(t, err)
 	mockAPI.AssertExpectations(t)
 }
 
-func TestDeleteItem_Error(t *testing.T) {
-	mockAPI := new(MockApiService)
-
+func TestCmdVersion(t *testing.T) {
 	app := createTestApp()
-	app.api = mockAPI
+	app.config.BuildVersion = "1.0.0"
+	app.config.BuildDate = "2024-01-01"
 
-	itemID := uuid.New()
-	mockAPI.On("DeleteItem", itemID).Return(errors.New("item not found"))
+	cmd := app.cmdVersion()
 
-	err := app.api.DeleteItem(itemID)
-	assert.Error(t, err)
-	assert.Equal(t, "item not found", err.Error())
-	mockAPI.AssertExpectations(t)
+	err := cmd.Execute()
+	assert.NoError(t, err)
 }
