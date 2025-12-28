@@ -13,8 +13,8 @@ import (
 // ErrInvalidItemType is returned when an invalid item type is provided.
 var ErrInvalidItemType = fmt.Errorf("invalid item type")
 
-// KeyRepoInterface defines the encryption key repository contract.
-type KeyRepoInterface interface {
+// KeyRepo defines the encryption key repository contract.
+type KeyRepo interface {
 	Save(ctx context.Context, userID uuid.UUID, enc []byte) error
 	Load(ctx context.Context, userID uuid.UUID) ([]byte, bool, error)
 }
@@ -36,13 +36,13 @@ type ItemRepoInterface interface {
 // ItemService handles encrypted item management with envelope encryption.
 // Uses a master key to encrypt per-user keys, which in turn encrypt individual data keys.
 type ItemService struct {
-	keyRepo   KeyRepoInterface
+	keyRepo   KeyRepo
 	itemRepo  ItemRepoInterface
 	masterKey []byte
 }
 
 // NewItemService creates a new item service instance with the specified master key.
-func NewItemService(keyRepo KeyRepoInterface, itemRepo ItemRepoInterface, masterKey []byte) *ItemService {
+func NewItemService(keyRepo KeyRepo, itemRepo ItemRepoInterface, masterKey []byte) *ItemService {
 	return &ItemService{
 		keyRepo:   keyRepo,
 		itemRepo:  itemRepo,

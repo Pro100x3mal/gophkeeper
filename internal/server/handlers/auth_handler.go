@@ -6,15 +6,14 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
 	"github.com/Pro100x3mal/gophkeeper/models"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
-// AuthServiceInterface defines the authentication service contract.
-type AuthServiceInterface interface {
+// AuthSvc defines the authentication service contract.
+type AuthSvc interface {
 	Register(ctx context.Context, username, password string) (*models.User, string, error)
 	Login(ctx context.Context, username, password string) (*models.User, string, error)
 }
@@ -26,13 +25,13 @@ type AuthValidator interface {
 
 // AuthHandler handles HTTP requests for user authentication.
 type AuthHandler struct {
-	authSvc   AuthServiceInterface
+	authSvc   AuthSvc
 	validator AuthValidator
 	logger    *zap.Logger
 }
 
 // NewAuthHandler creates a new authentication handler instance.
-func NewAuthHandler(authSvc AuthServiceInterface, validator AuthValidator, logger *zap.Logger) *AuthHandler {
+func NewAuthHandler(authSvc AuthSvc, validator AuthValidator, logger *zap.Logger) *AuthHandler {
 	return &AuthHandler{
 		authSvc:   authSvc,
 		validator: validator,
@@ -79,7 +78,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	user, token, err := h.authSvc.Register(r.Context(), req.Username, req.Password)
 	if err != nil {
-		if errors.Is(err, repositories.ErrUserAlreadyExists) {
+		if errors.Is(err, models.ErrUserAlreadyExists) {
 			http.Error(w, http.StatusText(http.StatusConflict), http.StatusConflict)
 			return
 		}

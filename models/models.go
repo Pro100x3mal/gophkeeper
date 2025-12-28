@@ -5,9 +5,23 @@
 package models
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
+)
+
+// Domain errors
+
+var (
+	// ErrUserAlreadyExists is returned when attempting to create a user with an existing username.
+	ErrUserAlreadyExists = errors.New("user already exists")
+
+	// ErrUserNotFound is returned when a user cannot be found by ID or username.
+	ErrUserNotFound = errors.New("user not found")
+
+	// ErrItemNotFound is returned when an item cannot be found.
+	ErrItemNotFound = errors.New("item not found")
 )
 
 // User represents a registered user in the system.

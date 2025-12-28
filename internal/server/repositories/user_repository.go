@@ -16,13 +16,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var (
-	// ErrUserAlreadyExists is returned when attempting to create a user with an existing username.
-	ErrUserAlreadyExists = errors.New("user already exists")
-	// ErrUserNotFound is returned when a user cannot be found by ID or username.
-	ErrUserNotFound = errors.New("user not found")
-)
-
 // UserRepository handles database operations for user entities.
 type UserRepository struct {
 	db *pgxpool.Pool
@@ -34,7 +27,7 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 }
 
 // CreateUser inserts a new user into the database.
-// Returns ErrUserAlreadyExists if the username is already taken.
+// Returns models.ErrUserAlreadyExists if the username is already taken.
 func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
 	query := `
 		INSERT INTO users (id, username, password_hash)
@@ -45,7 +38,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) erro
 	if err := r.db.QueryRow(ctx, query, user.ID, user.Username, user.PasswordHash).
 		Scan(&user.CreatedAt, &user.UpdatedAt); err != nil {
 		if isUniqueViolation(err) {
-			return ErrUserAlreadyExists
+			return models.ErrUserAlreadyExists
 		}
 		return fmt.Errorf("failed to create user: %w", err)
 	}
@@ -60,7 +53,7 @@ func isUniqueViolation(err error) bool {
 }
 
 // GetUserByID retrieves a user by their ID.
-// Returns ErrUserNotFound if the user does not exist.
+// Returns models.ErrUserNotFound if the user does not exist.
 func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	query := `
 		SELECT id, username, password_hash, created_at, updated_at
@@ -71,7 +64,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 	if err := r.db.QueryRow(ctx, query, id).
 		Scan(&user.ID, &user.Username, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrUserNotFound
+			return nil, models.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("failed to get user by id: %w", err)
 	}
@@ -80,7 +73,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 }
 
 // GetUserByUsername retrieves a user by their username.
-// Returns ErrUserNotFound if the user does not exist.
+// Returns models.ErrUserNotFound if the user does not exist.
 func (r *UserRepository) GetUserByUsername(ctx context.Context, username string) (*models.User, error) {
 	query := `
 		SELECT id, username, password_hash, created_at, updated_at
@@ -91,7 +84,7 @@ func (r *UserRepository) GetUserByUsername(ctx context.Context, username string)
 	if err := r.db.QueryRow(ctx, query, username).
 		Scan(&user.ID, &user.Username, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrUserNotFound
+			return nil, models.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("failed to get user by username: %w", err)
 	}

@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/validators"
 	"github.com/Pro100x3mal/gophkeeper/models"
@@ -20,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// MockAuthService is a mock implementation of AuthServiceInterface
+// MockAuthService is a mock implementation of AuthSvc
 type MockAuthService struct {
 	mock.Mock
 }
@@ -160,7 +159,7 @@ func TestAuthHandler_Register_UserAlreadyExists(t *testing.T) {
 	handler := NewAuthHandler(mockService, validator, logger)
 
 	mockService.On("Register", mock.Anything, "existinguser", "password123").
-		Return(nil, "", repositories.ErrUserAlreadyExists)
+		Return(nil, "", models.ErrUserAlreadyExists)
 
 	reqBody := RegisterRequest{Username: "existinguser", Password: "password123"}
 	body, _ := json.Marshal(reqBody)

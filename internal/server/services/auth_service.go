@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/models"
 	"github.com/Pro100x3mal/gophkeeper/pkg/jwt"
 	"github.com/google/uuid"
@@ -19,8 +18,8 @@ import (
 // ErrInvalidCredentials is returned when username or password is incorrect.
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
-// UserRepoInterface defines the user repository contract.
-type UserRepoInterface interface {
+// UserRepo defines the user repository contract.
+type UserRepo interface {
 	CreateUser(ctx context.Context, user *models.User) error
 	GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*models.User, error)
@@ -28,12 +27,12 @@ type UserRepoInterface interface {
 
 // AuthService handles user authentication and registration operations.
 type AuthService struct {
-	userRepo UserRepoInterface
+	userRepo UserRepo
 	jwtGen   *jwt.Generator
 }
 
 // NewAuthService creates a new authentication service instance.
-func NewAuthService(userRepo UserRepoInterface, jwtGen *jwt.Generator) *AuthService {
+func NewAuthService(userRepo UserRepo, jwtGen *jwt.Generator) *AuthService {
 	return &AuthService{
 		userRepo: userRepo,
 		jwtGen:   jwtGen,
@@ -54,7 +53,7 @@ func (as *AuthService) Register(ctx context.Context, username, password string) 
 	}
 
 	if err = as.userRepo.CreateUser(ctx, user); err != nil {
-		if errors.Is(err, repositories.ErrUserAlreadyExists) {
+		if errors.Is(err, models.ErrUserAlreadyExists) {
 			return nil, "", fmt.Errorf("user with username %s already exists: %w", username, err)
 		}
 		return nil, "", fmt.Errorf("failed to create user: %w", err)
@@ -73,7 +72,7 @@ func (as *AuthService) Register(ctx context.Context, username, password string) 
 func (as *AuthService) Login(ctx context.Context, username, password string) (*models.User, string, error) {
 	user, err := as.userRepo.GetUserByUsername(ctx, username)
 	if err != nil {
-		if errors.Is(err, repositories.ErrUserNotFound) {
+		if errors.Is(err, models.ErrUserNotFound) {
 			return nil, "", ErrInvalidCredentials
 		}
 		return nil, "", fmt.Errorf("failed to get user: %w", err)

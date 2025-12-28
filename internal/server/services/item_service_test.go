@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// MockKeyRepo is a mock implementation of KeyRepoInterface
+// MockKeyRepo is a mock implementation of KeyRepo
 type MockKeyRepo struct {
 	mock.Mock
 }
@@ -63,7 +63,12 @@ func (m *MockItemRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]*mod
 	return args.Get(0).([]*models.Item), args.Error(1)
 }
 
-func (m *MockItemRepo) Update(ctx context.Context, userID, itemID uuid.UUID, req *models.UpdateItemRequest, encData *models.EncryptedData) (*models.Item, error) {
+func (m *MockItemRepo) Update(
+	ctx context.Context,
+	userID, itemID uuid.UUID,
+	req *models.UpdateItemRequest,
+	encData *models.EncryptedData,
+) (*models.Item, error) {
 	args := m.Called(ctx, userID, itemID, req, encData)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

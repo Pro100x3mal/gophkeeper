@@ -7,15 +7,14 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
 	"github.com/Pro100x3mal/gophkeeper/models"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
-// ItemService defines the item management service contract.
-type ItemService interface {
+// ItemSvc defines the item management service contract.
+type ItemSvc interface {
 	CreateItem(ctx context.Context, req *models.CreateItemRequest, userID uuid.UUID) (*models.Item, error)
 	ListItems(ctx context.Context, userID uuid.UUID) ([]*models.Item, error)
 	GetItem(ctx context.Context, userID, itemID uuid.UUID) (*models.Item, []byte, error)
@@ -32,13 +31,13 @@ type ItemValidator interface {
 
 // ItemHandler handles HTTP requests for item management operations.
 type ItemHandler struct {
-	itemSvc   ItemService
+	itemSvc   ItemSvc
 	validator ItemValidator
 	logger    *zap.Logger
 }
 
 // NewItemHandler creates a new item handler instance.
-func NewItemHandler(itemSvc ItemService, validator ItemValidator, logger *zap.Logger) *ItemHandler {
+func NewItemHandler(itemSvc ItemSvc, validator ItemValidator, logger *zap.Logger) *ItemHandler {
 	return &ItemHandler{
 		itemSvc:   itemSvc,
 		validator: validator,
@@ -116,7 +115,7 @@ func (h *ItemHandler) UpdateItem(w http.ResponseWriter, r *http.Request, userID 
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
-		if errors.Is(err, repositories.ErrItemNotFound) {
+		if errors.Is(err, models.ErrItemNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
@@ -152,7 +151,7 @@ func (h *ItemHandler) GetItem(w http.ResponseWriter, r *http.Request, userID uui
 
 	item, data, err := h.itemSvc.GetItem(r.Context(), userID, itemID)
 	if err != nil {
-		if errors.Is(err, repositories.ErrItemNotFound) {
+		if errors.Is(err, models.ErrItemNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
@@ -178,7 +177,7 @@ func (h *ItemHandler) DeleteItem(w http.ResponseWriter, r *http.Request, userID 
 	}
 
 	if err = h.itemSvc.DeleteItem(r.Context(), userID, itemID); err != nil {
-		if errors.Is(err, repositories.ErrItemNotFound) {
+		if errors.Is(err, models.ErrItemNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}

@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/validators"
 	"github.com/Pro100x3mal/gophkeeper/models"
@@ -19,7 +18,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// MockItemService is a mock implementation of ItemService
+// MockItemService is a mock implementation of ItemSvc
 type MockItemService struct {
 	mock.Mock
 }
@@ -255,7 +254,7 @@ func TestItemHandler_GetItem_NotFound(t *testing.T) {
 	itemID := uuid.New()
 
 	mockService.On("GetItem", mock.Anything, userID, itemID).
-		Return(nil, nil, repositories.ErrItemNotFound)
+		Return(nil, nil, models.ErrItemNotFound)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /items/{id}", func(w http.ResponseWriter, req *http.Request) {
@@ -360,7 +359,7 @@ func TestItemHandler_DeleteItem_NotFound(t *testing.T) {
 	itemID := uuid.New()
 
 	mockService.On("DeleteItem", mock.Anything, userID, itemID).
-		Return(repositories.ErrItemNotFound)
+		Return(models.ErrItemNotFound)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("DELETE /items/{id}", func(w http.ResponseWriter, req *http.Request) {

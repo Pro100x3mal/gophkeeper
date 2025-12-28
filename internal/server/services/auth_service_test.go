@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/models"
 	"github.com/Pro100x3mal/gophkeeper/pkg/jwt"
 	"github.com/google/uuid"
@@ -16,7 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// MockUserRepo is a mock implementation of UserRepoInterface
+// MockUserRepo is a mock implementation of UserRepo
 type MockUserRepo struct {
 	mock.Mock
 }
@@ -89,7 +88,7 @@ func TestAuthService_Register_UserAlreadyExists(t *testing.T) {
 	password := "password123"
 
 	mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*models.User")).
-		Return(repositories.ErrUserAlreadyExists)
+		Return(models.ErrUserAlreadyExists)
 
 	user, token, err := service.Register(ctx, username, password)
 
@@ -162,7 +161,7 @@ func TestAuthService_Login_UserNotFound(t *testing.T) {
 	username := "nonexistent"
 	password := "password123"
 
-	mockRepo.On("GetUserByUsername", ctx, username).Return(nil, repositories.ErrUserNotFound)
+	mockRepo.On("GetUserByUsername", ctx, username).Return(nil, models.ErrUserNotFound)
 
 	user, token, err := service.Login(ctx, username, password)
 
