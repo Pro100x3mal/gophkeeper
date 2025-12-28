@@ -11,6 +11,7 @@ import (
 
 	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
+	"github.com/Pro100x3mal/gophkeeper/internal/server/validators"
 	"github.com/Pro100x3mal/gophkeeper/models"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -20,6 +21,11 @@ import (
 
 // MockItemService is a mock implementation of ItemService
 type MockItemService struct {
+	mock.Mock
+}
+
+// MockItemValidator is a mock implementation of ItemValidator
+type MockItemValidator struct {
 	mock.Mock
 }
 
@@ -64,11 +70,27 @@ func (m *MockItemService) DeleteItem(ctx context.Context, userID, itemID uuid.UU
 	return args.Error(0)
 }
 
+func (m *MockItemValidator) ValidateCreateItemRequest(req *models.CreateItemRequest) error {
+	args := m.Called(req)
+	return args.Error(0)
+}
+
+func (m *MockItemValidator) ValidateUpdateItemRequest(req *models.UpdateItemRequest) error {
+	args := m.Called(req)
+	return args.Error(0)
+}
+
+func (m *MockItemValidator) ValidateUUID(id string) (uuid.UUID, error) {
+	args := m.Called(id)
+	return args.Get(0).(uuid.UUID), args.Error(1)
+}
+
 func TestNewItemHandler(t *testing.T) {
 	mockService := new(MockItemService)
+	mockValidator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
 
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, mockValidator, logger)
 
 	assert.NotNil(t, handler)
 	assert.Equal(t, mockService, handler.itemSvc)
@@ -76,8 +98,9 @@ func TestNewItemHandler(t *testing.T) {
 
 func TestItemHandler_CreateItem_Success(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	itemID := uuid.New()
@@ -108,8 +131,9 @@ func TestItemHandler_CreateItem_Success(t *testing.T) {
 
 func TestItemHandler_CreateItem_MissingType(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	reqBody := models.CreateItemRequest{
@@ -128,8 +152,9 @@ func TestItemHandler_CreateItem_MissingType(t *testing.T) {
 
 func TestItemHandler_CreateItem_MissingTitle(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	reqBody := models.CreateItemRequest{
@@ -148,8 +173,9 @@ func TestItemHandler_CreateItem_MissingTitle(t *testing.T) {
 
 func TestItemHandler_CreateItem_InvalidItemType(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	mockService.On("CreateItem", mock.Anything, mock.AnythingOfType("*models.CreateItemRequest"), userID).
@@ -172,8 +198,9 @@ func TestItemHandler_CreateItem_InvalidItemType(t *testing.T) {
 
 func TestItemHandler_ListItems_Success(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	items := []*models.Item{
@@ -194,8 +221,9 @@ func TestItemHandler_ListItems_Success(t *testing.T) {
 
 func TestItemHandler_GetItem_Success(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	itemID := uuid.New()
@@ -219,8 +247,9 @@ func TestItemHandler_GetItem_Success(t *testing.T) {
 
 func TestItemHandler_GetItem_NotFound(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	itemID := uuid.New()
@@ -243,8 +272,9 @@ func TestItemHandler_GetItem_NotFound(t *testing.T) {
 
 func TestItemHandler_UpdateItem_Success(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	itemID := uuid.New()
@@ -273,8 +303,9 @@ func TestItemHandler_UpdateItem_Success(t *testing.T) {
 
 func TestItemHandler_UpdateItem_NoFields(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	itemID := uuid.New()
@@ -297,8 +328,9 @@ func TestItemHandler_UpdateItem_NoFields(t *testing.T) {
 
 func TestItemHandler_DeleteItem_Success(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	itemID := uuid.New()
@@ -320,8 +352,9 @@ func TestItemHandler_DeleteItem_Success(t *testing.T) {
 
 func TestItemHandler_DeleteItem_NotFound(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	itemID := uuid.New()
@@ -344,8 +377,9 @@ func TestItemHandler_DeleteItem_NotFound(t *testing.T) {
 
 func TestItemHandler_CreateItem_InternalError(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	mockService.On("CreateItem", mock.Anything, mock.AnythingOfType("*models.CreateItemRequest"), userID).
@@ -368,8 +402,9 @@ func TestItemHandler_CreateItem_InternalError(t *testing.T) {
 
 func TestItemHandler_ListItems_Error(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	mockService.On("ListItems", mock.Anything, userID).
@@ -386,8 +421,9 @@ func TestItemHandler_ListItems_Error(t *testing.T) {
 
 func TestItemHandler_GetItem_InvalidUUID(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 
@@ -405,8 +441,9 @@ func TestItemHandler_GetItem_InvalidUUID(t *testing.T) {
 
 func TestItemHandler_UpdateItem_InvalidUUID(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	newTitle := "Updated"
@@ -428,8 +465,9 @@ func TestItemHandler_UpdateItem_InvalidUUID(t *testing.T) {
 
 func TestItemHandler_DeleteItem_InvalidUUID(t *testing.T) {
 	mockService := new(MockItemService)
+	validator := validators.NewItemValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewItemHandler(mockService, logger)
+	handler := NewItemHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 

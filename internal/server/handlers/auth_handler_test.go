@@ -11,6 +11,7 @@ import (
 
 	"github.com/Pro100x3mal/gophkeeper/internal/server/repositories"
 	"github.com/Pro100x3mal/gophkeeper/internal/server/services"
+	"github.com/Pro100x3mal/gophkeeper/internal/server/validators"
 	"github.com/Pro100x3mal/gophkeeper/models"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -42,9 +43,10 @@ func (m *MockAuthService) Login(ctx context.Context, username, password string) 
 
 func TestNewAuthHandler(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
 
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	assert.NotNil(t, handler)
 	assert.Equal(t, mockService, handler.authSvc)
@@ -52,8 +54,9 @@ func TestNewAuthHandler(t *testing.T) {
 
 func TestAuthHandler_Register_Success(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	token := "test-token"
@@ -86,8 +89,9 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 
 func TestAuthHandler_Register_MissingContentType(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	reqBody := RegisterRequest{Username: "testuser", Password: "password123"}
 	body, _ := json.Marshal(reqBody)
@@ -102,8 +106,9 @@ func TestAuthHandler_Register_MissingContentType(t *testing.T) {
 
 func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBufferString("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
@@ -116,8 +121,9 @@ func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
 
 func TestAuthHandler_Register_EmptyUsername(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	reqBody := RegisterRequest{Username: "", Password: "password123"}
 	body, _ := json.Marshal(reqBody)
@@ -132,8 +138,9 @@ func TestAuthHandler_Register_EmptyUsername(t *testing.T) {
 
 func TestAuthHandler_Register_EmptyPassword(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	reqBody := RegisterRequest{Username: "testuser", Password: ""}
 	body, _ := json.Marshal(reqBody)
@@ -148,8 +155,9 @@ func TestAuthHandler_Register_EmptyPassword(t *testing.T) {
 
 func TestAuthHandler_Register_UserAlreadyExists(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	mockService.On("Register", mock.Anything, "existinguser", "password123").
 		Return(nil, "", repositories.ErrUserAlreadyExists)
@@ -168,8 +176,9 @@ func TestAuthHandler_Register_UserAlreadyExists(t *testing.T) {
 
 func TestAuthHandler_Register_InternalError(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	mockService.On("Register", mock.Anything, "testuser", "password123").
 		Return(nil, "", errors.New("database error"))
@@ -188,8 +197,9 @@ func TestAuthHandler_Register_InternalError(t *testing.T) {
 
 func TestAuthHandler_Login_Success(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	userID := uuid.New()
 	token := "login-token"
@@ -219,8 +229,9 @@ func TestAuthHandler_Login_Success(t *testing.T) {
 
 func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	mockService.On("Login", mock.Anything, "testuser", "wrongpassword").
 		Return(nil, "", services.ErrInvalidCredentials)
@@ -239,8 +250,9 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 
 func TestAuthHandler_Login_EmptyUsername(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	reqBody := LoginRequest{Username: "", Password: "password123"}
 	body, _ := json.Marshal(reqBody)
@@ -255,8 +267,9 @@ func TestAuthHandler_Login_EmptyUsername(t *testing.T) {
 
 func TestAuthHandler_Login_EmptyPassword(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	reqBody := LoginRequest{Username: "testuser", Password: ""}
 	body, _ := json.Marshal(reqBody)
@@ -271,8 +284,9 @@ func TestAuthHandler_Login_EmptyPassword(t *testing.T) {
 
 func TestAuthHandler_Login_InvalidJSON(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
@@ -285,8 +299,9 @@ func TestAuthHandler_Login_InvalidJSON(t *testing.T) {
 
 func TestAuthHandler_Login_MissingContentType(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	reqBody := LoginRequest{Username: "testuser", Password: "password123"}
 	body, _ := json.Marshal(reqBody)
@@ -301,8 +316,9 @@ func TestAuthHandler_Login_MissingContentType(t *testing.T) {
 
 func TestAuthHandler_Login_InternalError(t *testing.T) {
 	mockService := new(MockAuthService)
+	validator := validators.NewAuthValidator()
 	logger, _ := zap.NewDevelopment()
-	handler := NewAuthHandler(mockService, logger)
+	handler := NewAuthHandler(mockService, validator, logger)
 
 	mockService.On("Login", mock.Anything, "testuser", "password123").
 		Return(nil, "", errors.New("database error"))
