@@ -70,7 +70,8 @@ gophkeeper/
 │       ├── handlers/            # HTTP хендлеры
 │       ├── middleware/          # HTTP middleware
 │       ├── repositories/        # Работа с БД
-│       └── services/            # Бизнес-логика
+│       ├── services/            # Бизнес-логика
+│       └── validators/          # Валидация входных данных
 ├── models/                      # Общие модели данных
 ├── pkg/                         # Переиспользуемые пакеты
 │   ├── crypto/                  # AES-256 шифрование
@@ -249,90 +250,104 @@ export MASTER_KEY="$(openssl rand -base64 32)"
 
 #### Команды клиента
 
-**Аутентификация:**
-```bash
-# Регистрация нового пользователя
-gophkeeper register --username <имя> --password <пароль>
-
-# Вход существующего пользователя
-gophkeeper login --username <имя> --password <пароль>
+**register** - регистрация нового пользователя
+```
+gophkeeper register --username USERNAME --password PASSWORD
 ```
 
-**Создание элементов:**
+**login** - вход существующего пользователя
+```
+gophkeeper login --username USERNAME --password PASSWORD
+```
+
+**create** - создание нового элемента хранилища
+```
+gophkeeper create --type TYPE --title TITLE [--file PATH | --data TEXT | --meta METADATA]
+```
+- `--type` - тип элемента: `credentials`, `text`, `card`, `binary`
+- `--title` - название элемента
+- `--file` - путь к файлу с данными (взаимоисключающий с --data)
+- `--data` - данные в виде текста/JSON (взаимоисключающий с --file)
+- `--meta` - дополнительные метаданные
+
+**list** - список всех элементов пользователя
+```
+gophkeeper list
+```
+
+**get** - получение элемента по ID
+```
+gophkeeper get --id UUID [--out PATH]
+```
+- `--id` - UUID элемента
+- `--out` - путь для сохранения данных элемента в файл (опционально)
+- Без `--out` вывод направляется в stdout
+
+**update** - обновление существующего элемента
+```
+gophkeeper update --id UUID [--type TYPE] [--title TITLE] [--meta METADATA] [--file PATH | --data TEXT]
+```
+- `--id` - UUID элемента (обязательный)
+- `--type` - новый тип элемента (опционально)
+- `--title` - новое название (опционально)
+- `--meta` - новые метаданные (опционально)
+- `--file` - путь к файлу с новыми данными (опционально, взаимоисключающий с --data)
+- `--data` - новые данные в виде текста/JSON (опционально, взаимоисключающий с --file)
+
+**delete** - удаление элемента
+```
+gophkeeper delete --id UUID
+```
+- `--id` - UUID элемента для удаления
+
+**version** - вывод версии клиента
+```
+gophkeeper version
+```
+
+**Примеры использования:**
 ```bash
-# Синтаксис: create --type <тип> --title <название> [--file <путь> | --data <текст> | --meta <метаданные>]
-# Типы: credentials | text | card | binary
+# Регистрация и вход
+gophkeeper register --username alice --password secret123
+gophkeeper login --username alice --password secret123
 
-# Учетные данные из файла
-gophkeeper create --type credentials --title "GitHub" --file data.json
+# Создание учетных данных из текста (JSON)
+gophkeeper create --type credentials --title "GitHub" --data '{"username":"alice","password":"secret123"}'
 
-# Учетные данные из текста (JSON)
-gophkeeper create --type credentials --title "AWS" --data '{"access_key":"AKIA...","secret_key":"..."}'
+# Создание учетных данных из файла
+gophkeeper create --type credentials --title "AWS" --file credentials.json
 
-# Текстовая заметка с метаданными
+# Создание текстовой заметки
+gophkeeper create --type text --title "Secret Note" --data "My important secret text"
 gophkeeper create --type text --title "Notes" --meta "My secret notes"
 
-# Текстовая заметка с данными
-gophkeeper create --type text --title "Secret" --data "My important secret text"
+# Создание банковской карты
+gophkeeper create --type card --title "Visa" --data '{"number":"4111111111111111","holder":"John Doe","cvv":"123","expiry":"12/25"}'
 
-# Банковская карта из файла
-gophkeeper create --type card --title "Visa" --file card-data.json
-
-# Банковская карта из текста (JSON)
-gophkeeper create --type card --title "MasterCard" --data '{"number":"5555...","holder":"John","cvv":"123","expiry":"12/25"}'
-
-# Бинарные данные из файла
+# Создание бинарных данных (файл)
 gophkeeper create --type binary --title "SSH Key" --file ~/.ssh/id_rsa
-```
 
-**Управление элементами:**
-```bash
 # Список всех элементов
 gophkeeper list
 
-# Получить конкретный элемент по ID (вывод в stdout)
-gophkeeper get --id <uuid>
+# Получение элемента (вывод в stdout)
+gophkeeper get --id 123e4567-e89b-12d3-a456-426614174000
 
-# Получить элемент и сохранить в файл
-gophkeeper get --id <uuid> > secret.json
+# Сохранение элемента в файл (через перенаправление)
+gophkeeper get --id 123e4567-e89b-12d3-a456-426614174000 > secret.json
 
-# Обновить элемент (опционально: --type, --title, --meta, --file, --data)
-gophkeeper update --id <uuid> --title "New Title" --file new-data.json
-gophkeeper update --id <uuid> --data '{"username":"new","password":"secret"}'
+# Сохранение данных элемента в файл (через флаг --out)
+gophkeeper get --id 123e4567-e89b-12d3-a456-426614174000 --out credentials.json
 
-# Удалить элемент
-gophkeeper delete --id <uuid>
-```
+# Обновление элемента
+gophkeeper update --id 123e4567-e89b-12d3-a456-426614174000 --title "New Title"
+gophkeeper update --id 123e4567-e89b-12d3-a456-426614174000 --data '{"username":"newuser","password":"newpass"}'
+gophkeeper update --id 123e4567-e89b-12d3-a456-426614174000 --file new-data.json
 
-**Примеры получения данных:**
-```bash
-# Вывод данных в stdout (по умолчанию)
-$ gophkeeper get --id 123e4567-e89b-12d3-a456-426614174000
-{
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "type": "credentials",
-  "title": "GitHub",
-  "data": "{\"username\":\"alice\",\"password\":\"secret123\"}",
-  "metadata": "",
-  "created_at": "2025-01-15T10:30:00Z",
-  "updated_at": "2025-01-15T10:30:00Z"
-}
+# Удаление элемента
+gophkeeper delete --id 123e4567-e89b-12d3-a456-426614174000
 
-# Сохранить данные в файл
-$ gophkeeper get --id 123e4567-e89b-12d3-a456-426614174000 > github-creds.json
-$ cat github-creds.json
-{
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "type": "credentials",
-  "title": "GitHub",
-  "data": "{\"username\":\"alice\",\"password\":\"secret123\"}",
-  ...
-}
-```
-
-**Прочее:**
-```bash
-# Показать версию клиента
+# Проверка версии
 gophkeeper version
 ```
 
